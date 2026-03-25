@@ -22,7 +22,8 @@ export function LogoutButton({
 } & VariantProps<typeof buttonVariants>) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { clearPendingUpgrade, refreshSession } = useBrowserAuth();
+  const { clearPendingUpgrade, isAnonymous, refreshSession, user } =
+    useBrowserAuth();
 
   const logoutMutation = useMutation({
     mutationFn: logout,
@@ -35,6 +36,10 @@ export function LogoutButton({
       router.refresh();
     },
   });
+
+  if (!user || isAnonymous) {
+    return null;
+  }
 
   return (
     <Button

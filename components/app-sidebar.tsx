@@ -1,6 +1,7 @@
 "use client";
 
 import { PenSquare } from "lucide-react";
+import Link from "next/link";
 
 import { LogoutButton } from "@/components/logout-button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -46,10 +47,12 @@ export function AppSidebar({
   onSelectThread,
 }: AppSidebarProps) {
   const { user, isAnonymous, isLoading: isAuthLoading } = useBrowserAuth();
+  const showGuestActions = !isAuthLoading && (isAnonymous || !user);
+  const showLogoutAction = !isAuthLoading && user && !isAnonymous;
   const sessionTitle = isAnonymous || !user ? "Guest session" : user.displayName;
   const sessionDescription =
     isAnonymous || !user
-      ? "Temporary access with limited free questions"
+      ? "Sign in to keep your chats and continue later"
       : "Authenticated and persistent";
 
   return (
@@ -140,11 +143,42 @@ export function AppSidebar({
               </div>
             </CardContent>
             <CardFooter className="px-4">
-              <LogoutButton
-                variant="outline"
-                size="sm"
-                className="w-full justify-center rounded-full border-white/10 bg-white/[0.03] text-white hover:bg-white/[0.08] hover:text-white"
-              />
+              {showGuestActions ? (
+                <div className="flex w-full gap-2">
+                  <Button
+                    asChild
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 justify-center rounded-full border-white/10 bg-white/[0.03] text-white hover:bg-white/[0.08] hover:text-white"
+                  >
+                    <Link href="/auth/login">Sign in</Link>
+                  </Button>
+                  <Button
+                    asChild
+                    size="sm"
+                    className="flex-1 justify-center rounded-full bg-[#ff7a1a] text-black hover:bg-[#ff8b36]"
+                  >
+                    <Link href="/auth/sign-up">Sign up</Link>
+                  </Button>
+                </div>
+              ) : null}
+              {showLogoutAction ? (
+                <LogoutButton
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-center rounded-full border-white/10 bg-white/[0.03] text-white hover:bg-white/[0.08] hover:text-white"
+                />
+              ) : null}
+              {isAuthLoading ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled
+                  className="w-full justify-center rounded-full border-white/10 bg-white/[0.03] text-white/50"
+                >
+                  Loading...
+                </Button>
+              ) : null}
             </CardFooter>
           </Card>
         </SidebarFooter>
