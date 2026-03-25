@@ -20,8 +20,7 @@ export const AUTH_ERROR_MESSAGES = {
   login: "Unable to sign in with those credentials.",
   logout: "Unable to sign out right now. Please try again.",
   signup: "Unable to create your account right now. Please try again.",
-  updatePassword:
-    "Unable to update your password right now. Please try again.",
+  updatePassword: "Unable to update your password right now. Please try again.",
 } as const;
 
 export function getAuthErrorPageMessage(code?: string) {
@@ -29,7 +28,8 @@ export function getAuthErrorPageMessage(code?: string) {
     return AUTH_ERROR_PAGE_MESSAGES.auth_error;
   }
 
-  return AUTH_ERROR_PAGE_MESSAGES[
-    code as AuthErrorPageCode
-  ] ?? AUTH_ERROR_PAGE_MESSAGES.auth_error;
+  return (
+    AUTH_ERROR_PAGE_MESSAGES[code as AuthErrorPageCode] ??
+    AUTH_ERROR_PAGE_MESSAGES.auth_error
+  );
 }

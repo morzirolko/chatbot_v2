@@ -40,6 +40,7 @@ export function ForgotPasswordForm({
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setSuccess(false);
     await forgotPasswordMutation.mutateAsync(email).catch(() => undefined);
   };
 

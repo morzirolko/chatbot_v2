@@ -1,23 +1,29 @@
-import type { AuthActionResponse, SessionResponse } from "@/lib/types/auth";
+import { readJsonResponse } from "@/lib/api/error";
+import type {
+  AuthActionResponse,
+  BrowserSessionResponse,
+} from "@/lib/types/auth";
 
-async function readJsonResponse<T>(response: Response) {
-  const payload = (await response.json().catch(() => null)) as
-    | (T & { error?: string })
-    | null;
+async function postJson<T>(url: string, body?: unknown) {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: body ? { "Content-Type": "application/json" } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+  });
 
-  if (!response.ok) {
-    throw new Error(payload?.error ?? "Request failed.");
-  }
-
-  return payload as T;
+  return readJsonResponse<T>(response);
 }
 
-export async function getSession() {
+export async function getAuthSession() {
   const response = await fetch("/api/auth/session", {
     cache: "no-store",
   });
 
-  return readJsonResponse<SessionResponse>(response);
+  return readJsonResponse<BrowserSessionResponse>(response);
+}
+
+export async function ensureAnonymousSession() {
+  return postJson<BrowserSessionResponse>("/api/auth/anonymous-session");
 }
 
 export async function login({
@@ -27,15 +33,10 @@ export async function login({
   email: string;
   password: string;
 }) {
-  const response = await fetch("/api/auth/login", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ email, password }),
+  return postJson<AuthActionResponse>("/api/auth/login", {
+    email,
+    password,
   });
-
-  return readJsonResponse<AuthActionResponse>(response);
 }
 
 export async function signup({
@@ -45,45 +46,24 @@ export async function signup({
   email: string;
   password: string;
 }) {
-  const response = await fetch("/api/auth/signup", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ email, password }),
+  return postJson<AuthActionResponse>("/api/auth/signup", {
+    email,
+    password,
   });
-
-  return readJsonResponse<AuthActionResponse>(response);
 }
 
 export async function logout() {
-  const response = await fetch("/api/auth/logout", {
-    method: "POST",
-  });
-
-  return readJsonResponse<AuthActionResponse>(response);
+  return postJson<AuthActionResponse>("/api/auth/logout");
 }
 
 export async function forgotPassword(email: string) {
-  const response = await fetch("/api/auth/forgot-password", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ email }),
+  return postJson<AuthActionResponse>("/api/auth/forgot-password", {
+    email,
   });
-
-  return readJsonResponse<AuthActionResponse>(response);
 }
 
 export async function updatePassword(password: string) {
-  const response = await fetch("/api/auth/update-password", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ password }),
+  return postJson<AuthActionResponse>("/api/auth/update-password", {
+    password,
   });
-
-  return readJsonResponse<AuthActionResponse>(response);
 }

@@ -1,38 +1,45 @@
 import {
-  createAssistantMessageForThread,
+  AnonymousQuotaExceededError,
   createUserMessageForUser,
+  createAssistantMessageForThread,
 } from "@/lib/chat/service";
-import { getAuthenticatedUser } from "@/lib/auth/session";
+import { AuthSessionError, requireAuthenticatedUser } from "@/lib/auth/session";
+import { isAnonymousUser } from "@/lib/auth/user";
 import {
   CHAT_MAX_MESSAGE_LENGTH,
   ThreadTooLongError,
   streamAssistantResponse,
 } from "@/lib/openai/responses";
 import { CHAT_RESPONSE_ERROR_MESSAGE } from "@/lib/chat/errors";
+import type { ChatMessage } from "@/lib/types/chat";
 import { encodeServerSentEvent } from "@/lib/utils/sse";
 
 export const maxDuration = 30;
 
 export async function POST(request: Request) {
-  const user = await getAuthenticatedUser();
+  let user: Awaited<ReturnType<typeof requireAuthenticatedUser>>;
 
-  if (!user) {
-    return Response.json(
-      { error: "Authentication required." },
-      {
-        status: 401,
-        headers: {
-          "Cache-Control": "private, no-store",
+  try {
+    user = await requireAuthenticatedUser();
+  } catch (error) {
+    if (error instanceof AuthSessionError) {
+      return Response.json(
+        { error: "Authentication required." },
+        {
+          status: 401,
+          headers: {
+            "Cache-Control": "private, no-store",
+          },
         },
-      },
-    );
+      );
+    }
+
+    throw error;
   }
 
-  const body = (await request.json().catch(() => null)) as
-    | {
-        content?: string;
-      }
-    | null;
+  const body = (await request.json().catch(() => null)) as {
+    content?: string;
+  } | null;
 
   const content = body?.content?.trim();
 
@@ -62,26 +69,65 @@ export async function POST(request: Request) {
     );
   }
 
+  let threadId: string;
+  let threadMessages: ChatMessage[];
+  let userMessage: ChatMessage;
+
+  try {
+    const result = await createUserMessageForUser(user.id, content, {
+      enforceAnonymousQuota: isAnonymousUser(user),
+    });
+
+    threadId = result.thread.id;
+    threadMessages = result.messages;
+    userMessage = result.message;
+  } catch (error) {
+    if (error instanceof AnonymousQuotaExceededError) {
+      return Response.json(
+        {
+          error: error.message,
+          code: "quota_exceeded",
+        },
+        {
+          status: 403,
+          headers: {
+            "Cache-Control": "private, no-store",
+          },
+        },
+      );
+    }
+
+    console.error("[api/chat/messages] Failed to create user message.", error);
+    return Response.json(
+      {
+        error: CHAT_RESPONSE_ERROR_MESSAGE,
+      },
+      {
+        status: 500,
+        headers: {
+          "Cache-Control": "private, no-store",
+        },
+      },
+    );
+  }
+
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const sendEvent = (event: string, payload: unknown) => {
-        controller.enqueue(encoder.encode(encodeServerSentEvent(event, payload)));
+        controller.enqueue(
+          encoder.encode(encodeServerSentEvent(event, payload)),
+        );
       };
 
       try {
-        const { thread, message, messages } = await createUserMessageForUser(
-          user.id,
-          content,
-        );
-
         sendEvent("ack", {
           type: "ack",
-          message,
+          message: userMessage,
         });
 
         const assistantResponse = await streamAssistantResponse({
-          messages,
+          messages: threadMessages,
           onDelta(delta) {
             sendEvent("delta", {
               type: "delta",
@@ -91,7 +137,7 @@ export async function POST(request: Request) {
         });
 
         const assistantMessage = await createAssistantMessageForThread(
-          thread.id,
+          threadId,
           assistantResponse.content,
           assistantResponse.responseId,
         );

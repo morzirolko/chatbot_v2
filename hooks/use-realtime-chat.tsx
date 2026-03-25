@@ -9,7 +9,10 @@ import { chatThreadQueryKey } from "@/lib/query-keys";
 import { createClient } from "@/lib/supabase/client";
 import type { ChatMessage, ChatThreadResponse } from "@/lib/types/chat";
 
-export function useRealtimeChat(channelName?: string) {
+export function useRealtimeChat(
+  channelName?: string,
+  accessToken?: string | null,
+) {
   const queryClient = useQueryClient();
   const supabase = useMemo(() => createClient(), []);
   const [channel, setChannel] = useState<ReturnType<
@@ -18,7 +21,7 @@ export function useRealtimeChat(channelName?: string) {
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    if (!channelName) {
+    if (!channelName || !accessToken) {
       setChannel(null);
       setIsConnected(false);
       return;
@@ -29,7 +32,7 @@ export function useRealtimeChat(channelName?: string) {
 
     const subscribeToChannel = async () => {
       try {
-        await supabase.realtime.setAuth();
+        await supabase.realtime.setAuth(accessToken);
 
         if (!isActive) {
           return;
@@ -81,7 +84,10 @@ export function useRealtimeChat(channelName?: string) {
           return;
         }
 
-        console.error("[chat/realtime] Failed to authorize realtime client.", error);
+        console.error(
+          "[chat/realtime] Failed to authorize realtime client.",
+          error,
+        );
         setChannel(null);
         setIsConnected(false);
       }
@@ -98,7 +104,7 @@ export function useRealtimeChat(channelName?: string) {
         void supabase.removeChannel(newChannel);
       }
     };
-  }, [channelName, queryClient, supabase]);
+  }, [accessToken, channelName, queryClient, supabase]);
 
   const broadcastMessage = useCallback(
     async (message: ChatMessage) => {

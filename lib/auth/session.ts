@@ -1,25 +1,18 @@
 import "server-only";
 
-import type { User } from "@supabase/supabase-js";
-
+import {
+  isAnonymousUser,
+  mapBrowserSessionUser,
+  mapSessionUser,
+} from "@/lib/auth/user";
+import type { BrowserSessionResponse } from "@/lib/types/auth";
 import { createClient } from "@/lib/supabase/server";
-import type { SessionUser } from "@/lib/types/auth";
 
-export function getUserDisplayName(
-  user: Pick<User, "email" | "user_metadata">,
-) {
-  const username = user.user_metadata?.username;
-  const userName = user.user_metadata?.user_name;
-
-  return username ?? userName ?? user.email?.split("@")[0] ?? "Anonymous";
-}
-
-export function mapSessionUser(user: User): SessionUser {
-  return {
-    id: user.id,
-    email: user.email ?? "",
-    displayName: getUserDisplayName(user),
-  };
+export class AuthSessionError extends Error {
+  constructor(message = "Authentication required.") {
+    super(message);
+    this.name = "AuthSessionError";
+  }
 }
 
 export async function getAuthenticatedUser() {
@@ -36,8 +29,54 @@ export async function getAuthenticatedUser() {
   return user;
 }
 
+export async function requireAuthenticatedUser(options?: {
+  allowAnonymous?: boolean;
+}) {
+  const user = await getAuthenticatedUser();
+
+  if (!user) {
+    throw new AuthSessionError();
+  }
+
+  if (options?.allowAnonymous === false && isAnonymousUser(user)) {
+    throw new AuthSessionError();
+  }
+
+  return user;
+}
+
+export async function getBrowserSession() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+
+  if (error || !user) {
+    return {
+      user: null,
+      isAnonymous: false,
+      realtimeAccessToken: null,
+    } satisfies BrowserSessionResponse;
+  }
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  return {
+    user: mapBrowserSessionUser(user),
+    isAnonymous: isAnonymousUser(user),
+    realtimeAccessToken: session?.access_token ?? null,
+  } satisfies BrowserSessionResponse;
+}
+
 export async function getSessionUser() {
   const user = await getAuthenticatedUser();
 
-  return user ? mapSessionUser(user) : null;
+  if (!user || isAnonymousUser(user)) {
+    return null;
+  }
+
+  return mapSessionUser(user);
 }

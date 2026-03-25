@@ -1,6 +1,8 @@
 "use client";
 
 import { useMutation } from "@tanstack/react-query";
+
+import { useBrowserAuth } from "@/hooks/use-browser-auth";
 import { cn } from "@/lib/utils";
 import { signup } from "@/lib/api/auth";
 import { Button } from "@/components/ui/button";
@@ -26,10 +28,18 @@ export function SignUpForm({
   const [repeatPassword, setRepeatPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const { prepareAnonymousUpgrade, refreshSession } = useBrowserAuth();
   const signUpMutation = useMutation({
     mutationFn: signup,
-    onSuccess: () => {
-      router.push("/auth/sign-up-success");
+    onSuccess: async (result) => {
+      if (result.requiresEmailConfirmation) {
+        router.push("/auth/sign-up-success");
+        return;
+      }
+
+      await refreshSession();
+      router.push("/protected");
+      router.refresh();
     },
     onError: (mutationError) => {
       setError(
@@ -46,6 +56,17 @@ export function SignUpForm({
 
     if (password !== repeatPassword) {
       setError("Passwords do not match");
+      return;
+    }
+
+    try {
+      await prepareAnonymousUpgrade();
+    } catch (prepareError) {
+      setError(
+        prepareError instanceof Error
+          ? prepareError.message
+          : "Unable to preserve your guest chat history.",
+      );
       return;
     }
 

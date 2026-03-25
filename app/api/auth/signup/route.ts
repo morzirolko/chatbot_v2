@@ -1,16 +1,14 @@
 import { AUTH_ERROR_MESSAGES } from "@/lib/auth/errors";
 import { NextResponse } from "next/server";
 
-import { mapSessionUser } from "@/lib/auth/session";
+import { mapSessionUser } from "@/lib/auth/user";
 import { createClient } from "@/lib/supabase/server";
 
 export async function POST(request: Request) {
-  const body = (await request.json().catch(() => null)) as
-    | {
-        email?: string;
-        password?: string;
-      }
-    | null;
+  const body = (await request.json().catch(() => null)) as {
+    email?: string;
+    password?: string;
+  } | null;
 
   const email = body?.email?.trim();
   const password = body?.password?.trim();

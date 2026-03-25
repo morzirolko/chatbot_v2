@@ -1,13 +1,14 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-
-import { getSession } from "@/lib/api/auth";
-import { sessionQueryKey } from "@/lib/query-keys";
+import { useBrowserAuth } from "@/hooks/use-browser-auth";
 
 export function useSessionQuery() {
-  return useQuery({
-    queryKey: sessionQueryKey,
-    queryFn: getSession,
-  });
+  const { isAnonymous, isLoading, user } = useBrowserAuth();
+
+  return {
+    data: {
+      user: isAnonymous ? null : user,
+    },
+    isLoading,
+  };
 }

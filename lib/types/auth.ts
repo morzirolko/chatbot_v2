@@ -4,6 +4,16 @@ export interface SessionUser {
   displayName: string;
 }
 
+export interface BrowserSessionUser extends SessionUser {
+  isAnonymous: boolean;
+}
+
+export interface BrowserSessionResponse {
+  user: BrowserSessionUser | null;
+  isAnonymous: boolean;
+  realtimeAccessToken: string | null;
+}
+
 export type AuthErrorPageCode =
   | "auth_error"
   | "invalid_or_expired_link"

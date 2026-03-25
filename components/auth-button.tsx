@@ -2,19 +2,18 @@
 
 import Link from "next/link";
 
-import { useSessionQuery } from "@/hooks/use-session-query";
+import { useBrowserAuth } from "@/hooks/use-browser-auth";
 import { Button } from "./ui/button";
 import { LogoutButton } from "./logout-button";
 
 export function AuthButton() {
-  const { data, isLoading } = useSessionQuery();
-  const user = data?.user;
+  const { user, isAnonymous, isLoading } = useBrowserAuth();
 
   if (isLoading) {
     return <div className="text-muted-foreground">Loading...</div>;
   }
 
-  return user ? (
+  return user && !isAnonymous ? (
     <div className="flex items-center gap-4">
       Hey, {user.email}!
       <LogoutButton />

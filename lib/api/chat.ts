@@ -1,17 +1,6 @@
 import type { ChatStreamEvent, ChatThreadResponse } from "@/lib/types/chat";
+import { ApiError, readJsonResponse } from "@/lib/api/error";
 import { readServerSentEvents } from "@/lib/utils/sse";
-
-async function readJsonResponse<T>(response: Response) {
-  const payload = (await response.json().catch(() => null)) as
-    | (T & { error?: string })
-    | null;
-
-  if (!response.ok) {
-    throw new Error(payload?.error ?? "Request failed.");
-  }
-
-  return payload as T;
-}
 
 export async function getChatThread() {
   const response = await fetch("/api/chat/thread", {
@@ -50,7 +39,7 @@ export async function sendChatMessage({
     await onEvent(payload);
 
     if (payload.type === "error") {
-      throw new Error(payload.error);
+      throw new ApiError(payload.error, 400, payload.code);
     }
   }
 }

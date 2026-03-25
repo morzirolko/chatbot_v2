@@ -3,23 +3,24 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { logout } from "@/lib/api/auth";
-import { chatThreadQueryKey, sessionQueryKey } from "@/lib/query-keys";
-import type { SessionResponse } from "@/lib/types/auth";
+import { useBrowserAuth } from "@/hooks/use-browser-auth";
+import { chatThreadQueryKey } from "@/lib/query-keys";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 
 export function LogoutButton() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { clearPendingUpgrade, refreshSession } = useBrowserAuth();
 
   const logoutMutation = useMutation({
     mutationFn: logout,
-    onSuccess: () => {
-      queryClient.setQueryData<SessionResponse>(sessionQueryKey, {
-        user: null,
-      });
+    onSuccess: async () => {
+      clearPendingUpgrade();
+      await refreshSession();
       queryClient.removeQueries({ queryKey: chatThreadQueryKey });
-      router.push("/auth/login");
+      router.push("/");
+      router.refresh();
     },
   });
 

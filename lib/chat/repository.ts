@@ -17,6 +17,10 @@ interface ChatMessageRow {
   openai_response_id: string | null;
 }
 
+interface UsageCountRow {
+  question_count: number;
+}
+
 function mapChatThread(row: ChatThreadRow): ChatThread {
   return {
     id: row.id,
@@ -48,6 +52,10 @@ async function fetchThreadByUserId(userId: string) {
   }
 
   return data ? mapChatThread(data as ChatThreadRow) : null;
+}
+
+export async function getThreadByUserId(userId: string) {
+  return fetchThreadByUserId(userId);
 }
 
 export async function getOrCreateThreadByUserId(userId: string) {
@@ -100,11 +108,13 @@ export async function createChatMessage({
   role,
   content,
   openaiResponseId,
+  createdAt,
 }: {
   threadId: string;
   role: ChatRole;
   content: string;
   openaiResponseId?: string | null;
+  createdAt?: string;
 }) {
   const supabase = createAdminClient();
   const { data, error } = await supabase
@@ -114,6 +124,7 @@ export async function createChatMessage({
       role,
       content,
       openai_response_id: openaiResponseId ?? null,
+      created_at: createdAt,
     })
     .select("id, thread_id, role, content, created_at, openai_response_id")
     .single();
@@ -123,4 +134,49 @@ export async function createChatMessage({
   }
 
   return mapChatMessage(data as ChatMessageRow);
+}
+
+export async function getQuestionCountForUser(userId: string) {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("user_usage")
+    .select("question_count")
+    .eq("user_id", userId)
+    .maybeSingle<UsageCountRow>();
+
+  if (error) {
+    throw error;
+  }
+
+  return data?.question_count ?? 0;
+}
+
+export async function incrementQuestionCountForUser(userId: string) {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase.rpc("increment_user_question_count", {
+    target_user_id: userId,
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  return Number(data ?? 0);
+}
+
+export async function migrateAnonymousData(
+  sourceUserId: string,
+  destinationUserId: string,
+) {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase.rpc("migrate_anonymous_chat_data", {
+    source_user_id: sourceUserId,
+    destination_user_id: destinationUserId,
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  return Boolean(data);
 }

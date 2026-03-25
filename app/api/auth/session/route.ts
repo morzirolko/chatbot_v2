@@ -1,16 +1,13 @@
 import { NextResponse } from "next/server";
 
-import { getSessionUser } from "@/lib/auth/session";
+import { getBrowserSession } from "@/lib/auth/session";
 
 export async function GET() {
-  const user = await getSessionUser();
+  const session = await getBrowserSession();
 
-  return NextResponse.json(
-    { user },
-    {
-      headers: {
-        "Cache-Control": "private, no-store",
-      },
+  return NextResponse.json(session, {
+    headers: {
+      "Cache-Control": "private, no-store",
     },
-  );
+  });
 }

@@ -1,9 +1,9 @@
 "use client";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
+import { useBrowserAuth } from "@/hooks/use-browser-auth";
 import { cn } from "@/lib/utils";
 import { updatePassword } from "@/lib/api/auth";
-import { sessionQueryKey } from "@/lib/query-keys";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -24,12 +24,13 @@ export function UpdatePasswordForm({
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
-  const queryClient = useQueryClient();
+  const { refreshSession } = useBrowserAuth();
   const updatePasswordMutation = useMutation({
     mutationFn: updatePassword,
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: sessionQueryKey });
+      await refreshSession();
       router.push("/protected");
+      router.refresh();
     },
     onError: (mutationError) => {
       setError(

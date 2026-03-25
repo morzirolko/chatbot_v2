@@ -3,8 +3,10 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 
+import { ApiError } from "@/lib/api/error";
 import { upsertThreadMessage } from "@/lib/chat/cache";
 import { sendChatMessage } from "@/lib/api/chat";
+import { useBrowserAuth } from "@/hooks/use-browser-auth";
 import { chatThreadQueryKey } from "@/lib/query-keys";
 import type { ChatMessage, ChatThreadResponse } from "@/lib/types/chat";
 
@@ -17,14 +19,18 @@ export function useSendMessageMutation(
   options: UseSendMessageMutationOptions = {},
 ) {
   const queryClient = useQueryClient();
+  const { ensureAnonymousSession } = useBrowserAuth();
   const [streamingText, setStreamingText] = useState("");
   const [streamingCreatedAt, setStreamingCreatedAt] = useState<string | null>(
     null,
   );
   const [streamError, setStreamError] = useState<string | null>(null);
+  const [streamErrorCode, setStreamErrorCode] = useState<string | null>(null);
 
   const mutation = useMutation({
     mutationFn: async (content: string) => {
+      await ensureAnonymousSession();
+
       await sendChatMessage({
         content,
         onEvent: async (event) => {
@@ -55,6 +61,7 @@ export function useSendMessageMutation(
               break;
             case "error":
               setStreamError(event.error);
+              setStreamErrorCode(event.code ?? null);
               break;
             default:
               break;
@@ -64,6 +71,7 @@ export function useSendMessageMutation(
     },
     onMutate: () => {
       setStreamError(null);
+      setStreamErrorCode(null);
       setStreamingText("");
       setStreamingCreatedAt(null);
     },
@@ -72,6 +80,9 @@ export function useSendMessageMutation(
       setStreamingCreatedAt(null);
       setStreamError(
         error instanceof Error ? error.message : "Unable to send message.",
+      );
+      setStreamErrorCode(
+        error instanceof ApiError ? (error.code ?? null) : null,
       );
     },
     onSettled: async () => {
@@ -83,6 +94,7 @@ export function useSendMessageMutation(
 
   const clearStreamError = useCallback(() => {
     setStreamError(null);
+    setStreamErrorCode(null);
   }, []);
 
   return {
@@ -91,6 +103,7 @@ export function useSendMessageMutation(
     streamingText,
     streamingCreatedAt,
     streamError,
+    streamErrorCode,
     clearStreamError,
   };
 }

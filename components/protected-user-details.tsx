@@ -1,17 +1,17 @@
 "use client";
 
-import { useSessionQuery } from "@/hooks/use-session-query";
+import { useBrowserAuth } from "@/hooks/use-browser-auth";
 
 export function ProtectedUserDetails() {
-  const { data, isLoading } = useSessionQuery();
+  const { user, isAnonymous, isLoading } = useBrowserAuth();
 
   if (isLoading) {
     return "Loading user details...";
   }
 
-  if (!data?.user) {
+  if (!user || isAnonymous) {
     return "No active user session.";
   }
 
-  return JSON.stringify(data.user, null, 2);
+  return JSON.stringify(user, null, 2);
 }

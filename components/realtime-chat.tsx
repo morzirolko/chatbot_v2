@@ -6,11 +6,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { cn } from "@/lib/utils";
 import { ChatMessageItem } from "@/components/chat-message";
+import { useBrowserAuth } from "@/hooks/use-browser-auth";
 import { useChatScroll } from "@/hooks/use-chat-scroll";
 import { useChatThreadQuery } from "@/hooks/use-chat-thread-query";
 import { useRealtimeChat } from "@/hooks/use-realtime-chat";
 import { useSendMessageMutation } from "@/hooks/use-send-message-mutation";
-import { useSessionQuery } from "@/hooks/use-session-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { ChatMessage } from "@/lib/types/chat";
@@ -19,15 +19,20 @@ const STREAMING_MESSAGE_ID = "streaming-assistant-message";
 
 export const RealtimeChat = () => {
   const { containerRef, scrollToBottom } = useChatScroll();
-  const { data: sessionData, isLoading: isSessionLoading } = useSessionQuery();
-  const user = sessionData?.user ?? null;
+  const {
+    user,
+    isAnonymous,
+    isLoading: isAuthLoading,
+    realtimeAccessToken,
+  } = useBrowserAuth();
   const {
     data: threadData,
     error: threadError,
     isLoading: isThreadLoading,
-  } = useChatThreadQuery(Boolean(user));
+  } = useChatThreadQuery(true);
   const { broadcastMessage, isConnected } = useRealtimeChat(
     threadData?.thread.realtimeChannelName,
+    realtimeAccessToken,
   );
   const {
     sendMessage,
@@ -35,12 +40,18 @@ export const RealtimeChat = () => {
     streamingText,
     streamingCreatedAt,
     streamError,
+    streamErrorCode,
     clearStreamError,
   } = useSendMessageMutation({
     onAcknowledged: broadcastMessage,
     onCompleted: broadcastMessage,
   });
   const [newMessage, setNewMessage] = useState("");
+  const isGuest = isAnonymous || !user;
+  const isQuotaExceeded = isAnonymous && streamErrorCode === "quota_exceeded";
+  const isAnonymousProviderDisabled =
+    threadError instanceof Error &&
+    threadError.message.includes("Supabase anonymous sign-ins are disabled");
 
   const allMessages = useMemo(() => {
     const persistedMessages = threadData?.messages ?? [];
@@ -68,7 +79,7 @@ export const RealtimeChat = () => {
     async (e: React.FormEvent) => {
       e.preventDefault();
       const content = newMessage.trim();
-      if (!content || isPending) return;
+      if (!content || isPending || isQuotaExceeded) return;
 
       clearStreamError();
       await sendMessage(content)
@@ -77,10 +88,10 @@ export const RealtimeChat = () => {
         })
         .catch(() => undefined);
     },
-    [clearStreamError, isPending, newMessage, sendMessage],
+    [clearStreamError, isPending, isQuotaExceeded, newMessage, sendMessage],
   );
 
-  if (isSessionLoading) {
+  if (isAuthLoading) {
     return (
       <div className="w-full max-w-3xl rounded-2xl border bg-background p-6 text-sm text-muted-foreground">
         Loading chat...
@@ -88,28 +99,30 @@ export const RealtimeChat = () => {
     );
   }
 
-  if (!user) {
-    return (
-      <div className="w-full max-w-3xl rounded-2xl border bg-background p-6">
-        <h2 className="text-lg font-semibold">Private Chat</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Sign in to load your private conversation and stream assistant
-          responses from the server.
-        </p>
-        <div className="mt-4 flex gap-2">
-          <Button asChild>
-            <Link href="/auth/login">Sign in</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link href="/auth/sign-up">Create account</Link>
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
   if (isThreadLoading || !threadData) {
     if (threadError instanceof Error) {
+      if (isAnonymousProviderDisabled) {
+        return (
+          <div className="w-full max-w-3xl rounded-2xl border bg-background p-6 text-sm">
+            <p className="text-foreground">
+              Guest chat is currently unavailable.
+            </p>
+            <p className="mt-2 text-muted-foreground">
+              Sign in or create an account to keep using the chat while
+              anonymous sign-ins are disabled.
+            </p>
+            <div className="mt-4 flex gap-2">
+              <Button asChild size="sm">
+                <Link href="/auth/login">Sign in</Link>
+              </Button>
+              <Button asChild size="sm" variant="outline">
+                <Link href="/auth/sign-up">Create account</Link>
+              </Button>
+            </div>
+          </div>
+        );
+      }
+
       return (
         <div className="w-full max-w-3xl rounded-2xl border bg-background p-6 text-sm text-red-500">
           {threadError.message}
@@ -129,7 +142,11 @@ export const RealtimeChat = () => {
       <div className="flex items-center justify-between border-b px-4 py-3 text-sm">
         <div>
           <p className="font-medium">Private Chat</p>
-          <p className="text-muted-foreground">Signed in as {user.email}</p>
+          <p className="text-muted-foreground">
+            {isGuest
+              ? "Guest session with 3 free questions"
+              : `Signed in as ${user?.email ?? "unknown"}`}
+          </p>
         </div>
         <div className="text-xs text-muted-foreground">
           {isConnected
@@ -169,8 +186,18 @@ export const RealtimeChat = () => {
       </div>
 
       {streamError ? (
-        <div className="border-t px-4 py-3 text-sm text-red-500">
-          {streamError}
+        <div className="border-t px-4 py-3 text-sm">
+          <p className="text-red-500">{streamError}</p>
+          {isQuotaExceeded ? (
+            <div className="mt-3 flex gap-2">
+              <Button asChild size="sm">
+                <Link href="/auth/login">Sign in</Link>
+              </Button>
+              <Button asChild size="sm" variant="outline">
+                <Link href="/auth/sign-up">Create account</Link>
+              </Button>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -185,15 +212,22 @@ export const RealtimeChat = () => {
           )}
           type="text"
           value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          placeholder="Type a message..."
-          disabled={isPending}
+          onChange={(e) => {
+            setNewMessage(e.target.value);
+            if (streamError) {
+              clearStreamError();
+            }
+          }}
+          placeholder={
+            isQuotaExceeded ? "Sign in to keep chatting" : "Type a message..."
+          }
+          disabled={isPending || isQuotaExceeded}
         />
         {newMessage.trim() && (
           <Button
             className="aspect-square rounded-full animate-in fade-in slide-in-from-right-4 duration-300"
             type="submit"
-            disabled={isPending}
+            disabled={isPending || isQuotaExceeded}
           >
             {isPending ? (
               <Loader2 className="size-4 animate-spin" />

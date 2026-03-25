@@ -1,9 +1,11 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+
+import { useBrowserAuth } from "@/hooks/use-browser-auth";
 import { cn } from "@/lib/utils";
 import { login } from "@/lib/api/auth";
-import { chatThreadQueryKey, sessionQueryKey } from "@/lib/query-keys";
+import { chatThreadQueryKey } from "@/lib/query-keys";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -27,12 +29,14 @@ export function LoginForm({
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { prepareAnonymousUpgrade, refreshSession } = useBrowserAuth();
   const loginMutation = useMutation({
     mutationFn: login,
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: sessionQueryKey });
+      await refreshSession();
       queryClient.removeQueries({ queryKey: chatThreadQueryKey });
       router.push("/protected");
+      router.refresh();
     },
     onError: (mutationError) => {
       setError(
@@ -46,6 +50,18 @@ export function LoginForm({
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    try {
+      await prepareAnonymousUpgrade();
+    } catch (prepareError) {
+      setError(
+        prepareError instanceof Error
+          ? prepareError.message
+          : "Unable to preserve your guest chat history.",
+      );
+      return;
+    }
+
     await loginMutation
       .mutateAsync({
         email,
