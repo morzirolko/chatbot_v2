@@ -1,8 +1,7 @@
 import { AuthButton } from "@/components/auth-button";
 import { ThemeSwitcher } from "@/components/theme-switcher";
-import Link from "next/link";
-import { Suspense } from "react";
 import { RealtimeChat } from "@/components/realtime-chat";
+import Link from "next/link";
 
 export default function Home() {
   return (
@@ -13,13 +12,11 @@ export default function Home() {
             <div className="flex gap-5 items-center font-semibold">
               <Link href={"/"}>Next.js Supabase Starter</Link>
             </div>
-            <Suspense>
-              <AuthButton />
-            </Suspense>
+            <AuthButton />
           </div>
         </nav>
-        <div>
-          <RealtimeChat roomName="general" username="user1" />
+        <div className="w-full max-w-5xl px-5">
+          <RealtimeChat />
         </div>
         <footer className="w-full flex items-center justify-center border-t mx-auto text-center text-xs gap-8 py-16">
           <p>

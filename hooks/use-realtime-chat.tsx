@@ -1,79 +1,117 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { upsertThreadMessage } from "@/lib/chat/cache";
+import { CHAT_PERSISTED_MESSAGE_EVENT } from "@/lib/chat/realtime";
+import { chatThreadQueryKey } from "@/lib/query-keys";
 import { createClient } from "@/lib/supabase/client";
+import type { ChatMessage, ChatThreadResponse } from "@/lib/types/chat";
 
-interface UseRealtimeChatProps {
-  roomName: string;
-  username: string;
-}
-
-export interface ChatMessage {
-  id: string;
-  content: string;
-  user: {
-    name: string;
-  };
-  createdAt: string;
-}
-
-const EVENT_MESSAGE_TYPE = "message";
-
-export function useRealtimeChat({ roomName, username }: UseRealtimeChatProps) {
-  const supabase = createClient();
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+export function useRealtimeChat(channelName?: string) {
+  const queryClient = useQueryClient();
+  const supabase = useMemo(() => createClient(), []);
   const [channel, setChannel] = useState<ReturnType<
     typeof supabase.channel
   > | null>(null);
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    const newChannel = supabase.channel(roomName);
+    if (!channelName) {
+      setChannel(null);
+      setIsConnected(false);
+      return;
+    }
 
-    newChannel
-      .on("broadcast", { event: EVENT_MESSAGE_TYPE }, (payload) => {
-        setMessages((current) => [...current, payload.payload as ChatMessage]);
-      })
-      .subscribe(async (status) => {
-        if (status === "SUBSCRIBED") {
-          setIsConnected(true);
-        } else {
-          setIsConnected(false);
+    let isActive = true;
+    let newChannel: ReturnType<typeof supabase.channel> | null = null;
+
+    const subscribeToChannel = async () => {
+      try {
+        await supabase.realtime.setAuth();
+
+        if (!isActive) {
+          return;
         }
-      });
 
-    setChannel(newChannel);
+        newChannel = supabase.channel(channelName, {
+          config: {
+            broadcast: {
+              ack: true,
+              self: true,
+            },
+            private: true,
+          },
+        });
+
+        newChannel
+          .on(
+            "broadcast",
+            { event: CHAT_PERSISTED_MESSAGE_EVENT },
+            (payload) => {
+              queryClient.setQueryData<ChatThreadResponse>(
+                chatThreadQueryKey,
+                (currentThread) =>
+                  upsertThreadMessage(
+                    currentThread,
+                    payload.payload as ChatMessage,
+                  ),
+              );
+            },
+          )
+          .subscribe((status, error) => {
+            if (!isActive) {
+              return;
+            }
+
+            setIsConnected(status === "SUBSCRIBED");
+
+            if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+              console.error(
+                "[chat/realtime] Failed to subscribe to private chat channel.",
+                error,
+              );
+            }
+          });
+
+        setChannel(newChannel);
+      } catch (error) {
+        if (!isActive) {
+          return;
+        }
+
+        console.error("[chat/realtime] Failed to authorize realtime client.", error);
+        setChannel(null);
+        setIsConnected(false);
+      }
+    };
+
+    void subscribeToChannel();
 
     return () => {
-      supabase.removeChannel(newChannel);
+      isActive = false;
+      setChannel(null);
+      setIsConnected(false);
+
+      if (newChannel) {
+        void supabase.removeChannel(newChannel);
+      }
     };
-  }, [roomName, username, supabase]);
+  }, [channelName, queryClient, supabase]);
 
-  const sendMessage = useCallback(
-    async (content: string) => {
+  const broadcastMessage = useCallback(
+    async (message: ChatMessage) => {
       if (!channel || !isConnected) return;
-
-      const message: ChatMessage = {
-        id: crypto.randomUUID(),
-        content,
-        user: {
-          name: username,
-        },
-        createdAt: new Date().toISOString(),
-      };
-
-      // Update local state immediately for the sender
-      setMessages((current) => [...current, message]);
 
       await channel.send({
         type: "broadcast",
-        event: EVENT_MESSAGE_TYPE,
+        event: CHAT_PERSISTED_MESSAGE_EVENT,
         payload: message,
       });
     },
-    [channel, isConnected, username],
+    [channel, isConnected],
   );
 
-  return { messages, sendMessage, isConnected };
+  return { broadcastMessage, isConnected };
 }

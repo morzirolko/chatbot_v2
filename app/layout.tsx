@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Figtree } from "next/font/google";
-import { ThemeProvider } from "next-themes";
 import "./globals.css";
+import { Providers } from "@/components/providers";
 import { cn } from "@/lib/utils";
 
 const figtree = Figtree({
@@ -37,14 +37,7 @@ export default function RootLayout({
       className={cn("font-sans", figtree.variable, geistSans.variable)}
     >
       <body className="antialiased">
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          {children}
-        </ThemeProvider>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

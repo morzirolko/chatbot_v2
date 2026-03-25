@@ -1,15 +1,18 @@
+"use client";
+
 import Link from "next/link";
+
+import { useSessionQuery } from "@/hooks/use-session-query";
 import { Button } from "./ui/button";
-import { createClient } from "@/lib/supabase/server";
 import { LogoutButton } from "./logout-button";
 
-export async function AuthButton() {
-  const supabase = await createClient();
+export function AuthButton() {
+  const { data, isLoading } = useSessionQuery();
+  const user = data?.user;
 
-  // You can also use getUser() which will be slower.
-  const { data } = await supabase.auth.getClaims();
-
-  const user = data?.claims;
+  if (isLoading) {
+    return <div className="text-muted-foreground">Loading...</div>;
+  }
 
   return user ? (
     <div className="flex items-center gap-4">
