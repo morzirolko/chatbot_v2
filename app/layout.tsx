@@ -4,7 +4,10 @@ import { ThemeProvider } from "next-themes";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 
-const figtree = Figtree({subsets:['latin'],variable:'--font-sans'});
+const figtree = Figtree({
+  subsets: ["latin"],
+  variable: "--font-figtree",
+});
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
@@ -28,8 +31,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className={cn("font-sans", figtree.variable)}>
-      <body className={`${geistSans.className} antialiased`}>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={cn("font-sans", figtree.variable, geistSans.variable)}
+    >
+      <body className="antialiased">
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
