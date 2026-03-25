@@ -2,13 +2,16 @@ import "server-only";
 
 import {
   createChatMessage,
+  createThreadForUser,
   getQuestionCountForUser,
-  getThreadByUserId,
-  getOrCreateThreadByUserId,
+  getThreadByIdForUser,
   incrementQuestionCountForUser,
   listMessagesForThread,
+  listMessagesForThreadOwnedByUser,
+  listThreadsForUser,
   migrateAnonymousData,
 } from "@/lib/chat/repository";
+import { buildThreadTitle } from "@/lib/chat/thread";
 
 export const ANONYMOUS_FREE_QUESTION_LIMIT = 3;
 
@@ -21,14 +24,25 @@ export class AnonymousQuotaExceededError extends Error {
   }
 }
 
-export async function getChatThreadForUser(userId: string) {
-  const thread = await getOrCreateThreadByUserId(userId);
-  const messages = await listMessagesForThread(thread.id);
+export class ChatThreadNotFoundError extends Error {
+  constructor(message = "Chat thread not found.") {
+    super(message);
+    this.name = "ChatThreadNotFoundError";
+  }
+}
 
-  return {
-    thread,
-    messages,
-  };
+export async function listChatThreadsForUser(userId: string) {
+  return listThreadsForUser(userId);
+}
+
+export async function getChatThreadForUser(userId: string, threadId: string) {
+  const thread = await listMessagesForThreadOwnedByUser(userId, threadId);
+
+  if (!thread) {
+    throw new ChatThreadNotFoundError();
+  }
+
+  return thread;
 }
 
 export async function createUserMessageForUser(
@@ -36,6 +50,7 @@ export async function createUserMessageForUser(
   content: string,
   options?: {
     enforceAnonymousQuota?: boolean;
+    threadId?: string;
   },
 ) {
   if (options?.enforceAnonymousQuota) {
@@ -46,7 +61,17 @@ export async function createUserMessageForUser(
     }
   }
 
-  const thread = await getOrCreateThreadByUserId(userId);
+  const thread = options?.threadId
+    ? await getThreadByIdForUser(userId, options.threadId)
+    : await createThreadForUser({
+        userId,
+        title: buildThreadTitle(content),
+      });
+
+  if (!thread) {
+    throw new ChatThreadNotFoundError();
+  }
+
   const message = await createChatMessage({
     threadId: thread.id,
     role: "user",
@@ -83,20 +108,6 @@ export async function migrateAnonymousChatHistory(
   sourceUserId: string,
   destinationUserId: string,
 ) {
-  if (sourceUserId === destinationUserId) {
-    return {
-      migrated: false,
-    };
-  }
-
-  const sourceThread = await getThreadByUserId(sourceUserId);
-
-  if (!sourceThread) {
-    return {
-      migrated: false,
-    };
-  }
-
   const migrated = await migrateAnonymousData(sourceUserId, destinationUserId);
 
   return {

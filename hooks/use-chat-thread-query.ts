@@ -6,16 +6,20 @@ import { getChatThread } from "@/lib/api/chat";
 import { useBrowserAuth } from "@/hooks/use-browser-auth";
 import { chatThreadQueryKey } from "@/lib/query-keys";
 
-export function useChatThreadQuery(enabled: boolean) {
+export function useChatThreadQuery(threadId: string | null) {
   const { ensureAnonymousSession } = useBrowserAuth();
 
   return useQuery({
-    queryKey: chatThreadQueryKey,
+    queryKey: threadId ? chatThreadQueryKey(threadId) : ["chat-thread", "draft"],
     queryFn: async () => {
       await ensureAnonymousSession();
-      return getChatThread();
+      if (!threadId) {
+        return null;
+      }
+
+      return getChatThread(threadId);
     },
-    enabled,
+    enabled: Boolean(threadId),
     retry: false,
   });
 }

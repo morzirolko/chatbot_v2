@@ -5,7 +5,10 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useBrowserAuth } from "@/hooks/use-browser-auth";
 import { cn } from "@/lib/utils";
 import { login } from "@/lib/api/auth";
-import { chatThreadQueryKey } from "@/lib/query-keys";
+import {
+  chatThreadQueryKeyPrefix,
+  chatThreadsQueryKey,
+} from "@/lib/query-keys";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -34,7 +37,8 @@ export function LoginForm({
     mutationFn: login,
     onSuccess: async () => {
       await refreshSession();
-      queryClient.removeQueries({ queryKey: chatThreadQueryKey });
+      queryClient.removeQueries({ queryKey: chatThreadQueryKeyPrefix });
+      queryClient.removeQueries({ queryKey: chatThreadsQueryKey });
       router.push("/protected");
       router.refresh();
     },

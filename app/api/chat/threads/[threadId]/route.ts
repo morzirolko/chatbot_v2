@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 
 import { AuthSessionError, requireAuthenticatedUser } from "@/lib/auth/session";
-import { getChatThreadForUser } from "@/lib/chat/service";
+import {
+  ChatThreadNotFoundError,
+  getChatThreadForUser,
+} from "@/lib/chat/service";
 
 function isPrerenderInterruption(error: unknown) {
   return (
@@ -12,10 +15,14 @@ function isPrerenderInterruption(error: unknown) {
   );
 }
 
-export async function GET() {
+export async function GET(
+  _request: Request,
+  context: { params: Promise<{ threadId: string }> },
+) {
   try {
     const user = await requireAuthenticatedUser();
-    const thread = await getChatThreadForUser(user.id);
+    const { threadId } = await context.params;
+    const thread = await getChatThreadForUser(user.id, threadId);
 
     return NextResponse.json(thread, {
       headers: {
@@ -35,11 +42,23 @@ export async function GET() {
       );
     }
 
+    if (error instanceof ChatThreadNotFoundError) {
+      return NextResponse.json(
+        { error: error.message },
+        {
+          status: 404,
+          headers: {
+            "Cache-Control": "private, no-store",
+          },
+        },
+      );
+    }
+
     if (isPrerenderInterruption(error)) {
       throw error;
     }
 
-    console.error("[api/chat/thread] Failed to load thread.", error);
+    console.error("[api/chat/threads/[threadId]] Failed to load thread.", error);
     return NextResponse.json(
       { error: "Unable to load chat thread." },
       {
@@ -51,3 +70,4 @@ export async function GET() {
     );
   }
 }
+

@@ -1,5 +1,6 @@
 import {
   AnonymousQuotaExceededError,
+  ChatThreadNotFoundError,
   createUserMessageForUser,
   createAssistantMessageForThread,
 } from "@/lib/chat/service";
@@ -39,9 +40,11 @@ export async function POST(request: Request) {
 
   const body = (await request.json().catch(() => null)) as {
     content?: string;
+    threadId?: string;
   } | null;
 
   const content = body?.content?.trim();
+  const requestedThreadId = body?.threadId?.trim() || undefined;
 
   if (!content) {
     return Response.json(
@@ -76,6 +79,7 @@ export async function POST(request: Request) {
   try {
     const result = await createUserMessageForUser(user.id, content, {
       enforceAnonymousQuota: isAnonymousUser(user),
+      threadId: requestedThreadId,
     });
 
     threadId = result.thread.id;
@@ -90,6 +94,20 @@ export async function POST(request: Request) {
         },
         {
           status: 403,
+          headers: {
+            "Cache-Control": "private, no-store",
+          },
+        },
+      );
+    }
+
+    if (error instanceof ChatThreadNotFoundError) {
+      return Response.json(
+        {
+          error: error.message,
+        },
+        {
+          status: 404,
           headers: {
             "Cache-Control": "private, no-store",
           },

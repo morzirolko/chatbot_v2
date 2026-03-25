@@ -1,9 +1,22 @@
-import type { ChatStreamEvent, ChatThreadResponse } from "@/lib/types/chat";
+import type {
+  ChatStreamEvent,
+  ChatThreadResponse,
+  ChatThreadSummary,
+  SendChatMessageInput,
+} from "@/lib/types/chat";
 import { ApiError, readJsonResponse } from "@/lib/api/error";
 import { readServerSentEvents } from "@/lib/utils/sse";
 
-export async function getChatThread() {
-  const response = await fetch("/api/chat/thread", {
+export async function getChatThreads() {
+  const response = await fetch("/api/chat/threads", {
+    cache: "no-store",
+  });
+
+  return readJsonResponse<ChatThreadSummary[]>(response);
+}
+
+export async function getChatThread(threadId: string) {
+  const response = await fetch(`/api/chat/threads/${threadId}`, {
     cache: "no-store",
   });
 
@@ -12,9 +25,11 @@ export async function getChatThread() {
 
 export async function sendChatMessage({
   content,
+  threadId,
   onEvent,
 }: {
-  content: string;
+  content: SendChatMessageInput["content"];
+  threadId?: SendChatMessageInput["threadId"];
   onEvent: (event: ChatStreamEvent) => void | Promise<void>;
 }) {
   const response = await fetch("/api/chat/messages", {
@@ -22,7 +37,7 @@ export async function sendChatMessage({
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ content }),
+    body: JSON.stringify({ content, threadId }),
   });
 
   if (!response.ok) {

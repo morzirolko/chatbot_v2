@@ -20,7 +20,10 @@ import {
   readPendingAnonymousUpgradeToken,
   writePendingAnonymousUpgradeToken,
 } from "@/lib/auth/upgrade-storage";
-import { chatThreadQueryKey } from "@/lib/query-keys";
+import {
+  chatThreadQueryKeyPrefix,
+  chatThreadsQueryKey,
+} from "@/lib/query-keys";
 import type { BrowserSessionResponse, BrowserSessionUser } from "@/lib/types/auth";
 
 interface AuthContextValue {
@@ -201,7 +204,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await readJsonResponse<{ migrated: boolean }>(response);
       clearPendingAnonymousUpgradeToken();
       await queryClient.invalidateQueries({
-        queryKey: chatThreadQueryKey,
+        queryKey: chatThreadsQueryKey,
+      });
+      await queryClient.invalidateQueries({
+        queryKey: chatThreadQueryKeyPrefix,
       });
     })()
       .catch((error) => {
@@ -220,7 +226,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (previousUserIdRef.current !== nextUserId) {
       void queryClient.removeQueries({
-        queryKey: chatThreadQueryKey,
+        queryKey: chatThreadsQueryKey,
+      });
+      void queryClient.removeQueries({
+        queryKey: chatThreadQueryKeyPrefix,
       });
       previousUserIdRef.current = nextUserId;
     }

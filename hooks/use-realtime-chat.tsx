@@ -5,11 +5,15 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { upsertThreadMessage } from "@/lib/chat/cache";
 import { CHAT_PERSISTED_MESSAGE_EVENT } from "@/lib/chat/realtime";
-import { chatThreadQueryKey } from "@/lib/query-keys";
+import {
+  chatThreadQueryKey,
+  chatThreadsQueryKey,
+} from "@/lib/query-keys";
 import { createClient } from "@/lib/supabase/client";
 import type { ChatMessage, ChatThreadResponse } from "@/lib/types/chat";
 
 export function useRealtimeChat(
+  threadId?: string | null,
   channelName?: string,
   accessToken?: string | null,
 ) {
@@ -53,14 +57,18 @@ export function useRealtimeChat(
             "broadcast",
             { event: CHAT_PERSISTED_MESSAGE_EVENT },
             (payload) => {
-              queryClient.setQueryData<ChatThreadResponse>(
-                chatThreadQueryKey,
-                (currentThread) =>
-                  upsertThreadMessage(
-                    currentThread,
-                    payload.payload as ChatMessage,
-                  ),
-              );
+              const message = payload.payload as ChatMessage;
+
+              if (threadId) {
+                queryClient.setQueryData<ChatThreadResponse>(
+                  chatThreadQueryKey(threadId),
+                  (currentThread) => upsertThreadMessage(currentThread, message),
+                );
+              }
+
+              void queryClient.invalidateQueries({
+                queryKey: chatThreadsQueryKey,
+              });
             },
           )
           .subscribe((status, error) => {
@@ -104,7 +112,7 @@ export function useRealtimeChat(
         void supabase.removeChannel(newChannel);
       }
     };
-  }, [accessToken, channelName, queryClient, supabase]);
+  }, [accessToken, channelName, queryClient, supabase, threadId]);
 
   const broadcastMessage = useCallback(
     async (message: ChatMessage) => {

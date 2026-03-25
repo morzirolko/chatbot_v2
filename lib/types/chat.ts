@@ -11,12 +11,28 @@ export interface ChatMessage {
 
 export interface ChatThread {
   id: string;
+  title: string | null;
+  createdAt: string;
+  updatedAt: string;
   realtimeChannelName: string;
+}
+
+export interface ChatThreadSummary {
+  id: string;
+  title: string | null;
+  preview: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface ChatThreadResponse {
   thread: ChatThread;
   messages: ChatMessage[];
+}
+
+export interface SendChatMessageInput {
+  content: string;
+  threadId?: string;
 }
 
 export interface ChatMessageAckEvent {

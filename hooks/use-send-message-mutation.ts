@@ -4,19 +4,32 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 
 import { ApiError } from "@/lib/api/error";
-import { upsertThreadMessage } from "@/lib/chat/cache";
+import {
+  createThreadDetailFromMessage,
+  upsertThreadMessage,
+  upsertThreadSummary,
+} from "@/lib/chat/cache";
 import { sendChatMessage } from "@/lib/api/chat";
 import { useBrowserAuth } from "@/hooks/use-browser-auth";
-import { chatThreadQueryKey } from "@/lib/query-keys";
-import type { ChatMessage, ChatThreadResponse } from "@/lib/types/chat";
+import {
+  chatThreadQueryKey,
+  chatThreadQueryKeyPrefix,
+  chatThreadsQueryKey,
+} from "@/lib/query-keys";
+import type {
+  ChatMessage,
+  ChatThreadResponse,
+  ChatThreadSummary,
+} from "@/lib/types/chat";
 
 interface UseSendMessageMutationOptions {
+  activeThreadId: string | null;
   onAcknowledged?: (message: ChatMessage) => void | Promise<void>;
   onCompleted?: (message: ChatMessage) => void | Promise<void>;
 }
 
 export function useSendMessageMutation(
-  options: UseSendMessageMutationOptions = {},
+  options: UseSendMessageMutationOptions,
 ) {
   const queryClient = useQueryClient();
   const { ensureAnonymousSession } = useBrowserAuth();
@@ -33,13 +46,21 @@ export function useSendMessageMutation(
 
       await sendChatMessage({
         content,
+        threadId: options.activeThreadId ?? undefined,
         onEvent: async (event) => {
           switch (event.type) {
             case "ack":
               queryClient.setQueryData<ChatThreadResponse>(
-                chatThreadQueryKey,
+                chatThreadQueryKey(event.message.threadId),
                 (currentThread) =>
-                  upsertThreadMessage(currentThread, event.message),
+                  currentThread
+                    ? upsertThreadMessage(currentThread, event.message)
+                    : createThreadDetailFromMessage(event.message),
+              );
+              queryClient.setQueryData<ChatThreadSummary[]>(
+                chatThreadsQueryKey,
+                (currentThreads) =>
+                  upsertThreadSummary(currentThreads, event.message),
               );
               await options.onAcknowledged?.(event.message);
               break;
@@ -53,9 +74,16 @@ export function useSendMessageMutation(
               setStreamingText("");
               setStreamingCreatedAt(null);
               queryClient.setQueryData<ChatThreadResponse>(
-                chatThreadQueryKey,
+                chatThreadQueryKey(event.message.threadId),
                 (currentThread) =>
-                  upsertThreadMessage(currentThread, event.message),
+                  currentThread
+                    ? upsertThreadMessage(currentThread, event.message)
+                    : createThreadDetailFromMessage(event.message),
+              );
+              queryClient.setQueryData<ChatThreadSummary[]>(
+                chatThreadsQueryKey,
+                (currentThreads) =>
+                  upsertThreadSummary(currentThreads, event.message),
               );
               await options.onCompleted?.(event.message);
               break;
@@ -87,7 +115,10 @@ export function useSendMessageMutation(
     },
     onSettled: async () => {
       await queryClient.invalidateQueries({
-        queryKey: chatThreadQueryKey,
+        queryKey: chatThreadsQueryKey,
+      });
+      await queryClient.invalidateQueries({
+        queryKey: chatThreadQueryKeyPrefix,
       });
     },
   });
