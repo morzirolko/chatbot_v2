@@ -43,13 +43,14 @@ export function LogoutButton({
 
   return (
     <Button
+      type="button"
       className={cn(className)}
       variant={variant}
       size={size}
       onClick={() => logoutMutation.mutate()}
       disabled={logoutMutation.isPending}
     >
-      {logoutMutation.isPending ? "Logging out..." : "Logout"}
+      {logoutMutation.isPending ? "Logging out..." : "Log out"}
     </Button>
   );
 }

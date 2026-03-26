@@ -1,14 +1,8 @@
 "use client";
 
-import { Loader2, Send } from "lucide-react";
+import { ChevronDown, Loader2, Paperclip, Send } from "lucide-react";
 import Link from "next/link";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
 import { ChatMessageItem } from "@/components/chat-message";
@@ -121,7 +115,7 @@ export const RealtimeChat = ({
 
   if (isAuthLoading) {
     return (
-      <div className="w-full rounded-[2rem] border border-white/10 bg-white/5 p-6 text-sm text-white/55 backdrop-blur-xl">
+      <div className="w-full rounded-2xl border border-white/10 bg-[linear-gradient(180deg,rgba(255,140,56,0.08),rgba(255,255,255,0.04))] p-4 text-sm text-white/60 shadow-xl backdrop-blur-xl">
         Loading chat...
       </div>
     );
@@ -129,7 +123,7 @@ export const RealtimeChat = ({
 
   if (isArchiveLoading || (activeThreadId && isThreadLoading && !threadData)) {
     return (
-      <div className="w-full rounded-[2rem] border border-white/10 bg-white/5 p-6 text-sm text-white/55 backdrop-blur-xl">
+      <div className="w-full rounded-2xl border border-white/10 bg-[linear-gradient(180deg,rgba(255,140,56,0.08),rgba(255,255,255,0.04))] p-4 text-sm text-white/60 shadow-xl backdrop-blur-xl">
         Loading your conversation...
       </div>
     );
@@ -139,10 +133,8 @@ export const RealtimeChat = ({
     if (threadError instanceof Error) {
       if (isAnonymousProviderDisabled) {
         return (
-          <div className="w-full rounded-[2rem] border border-white/10 bg-white/5 p-6 text-sm backdrop-blur-xl">
-            <p className="text-white">
-              Guest chat is currently unavailable.
-            </p>
+          <div className="w-full rounded-2xl border border-white/10 bg-[linear-gradient(180deg,rgba(255,140,56,0.08),rgba(255,255,255,0.04))] p-4 text-sm backdrop-blur-xl">
+            <p className="text-white">Guest chat is currently unavailable.</p>
             <p className="mt-2 text-white/55">
               Sign in or create an account to keep using the chat while
               anonymous sign-ins are disabled.
@@ -160,7 +152,7 @@ export const RealtimeChat = ({
       }
 
       return (
-        <div className="w-full rounded-[2rem] border border-red-500/30 bg-red-500/10 p-6 text-sm text-red-100 backdrop-blur-xl">
+        <div className="w-full rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-100 backdrop-blur-xl">
           {threadError.message}
         </div>
       );
@@ -168,51 +160,36 @@ export const RealtimeChat = ({
   }
 
   return (
-    <div className="flex h-[72vh] w-full flex-col overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.05] text-white antialiased shadow-[0_24px_70px_rgba(0,0,0,0.35)] backdrop-blur-2xl">
-      <div className="flex items-center justify-between border-b border-white/10 px-5 py-4 text-sm">
-        <div>
-          <p className="font-medium text-white">
-            {threadData?.thread.title ?? "Fresh draft"}
-          </p>
-          <p className="text-white/50">
-            {activeThreadId
-              ? isGuest
-                ? "Guest session with 3 free questions"
-                : `Signed in as ${user?.email ?? "unknown"}`
-              : "This draft becomes a saved thread after your first message."}
-          </p>
+    <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[2rem] border border-white/8 bg-[linear-gradient(180deg,rgba(255,153,84,0.08),rgba(255,255,255,0.035)_18%,rgba(255,255,255,0.02)_100%)] text-white antialiased shadow-[0_28px_100px_rgba(0,0,0,0.34)] backdrop-blur-xl">
+      <div className="flex items-center justify-between border-b border-white/8 bg-[linear-gradient(90deg,rgba(255,140,56,0.08),rgba(255,255,255,0.025))] px-5 py-3.5 text-sm">
+        <div className="text-sm text-white/55">
+          {activeThreadId && !isGuest ? user?.email : "Chat"}
         </div>
-        <div className="text-xs text-white/45">
-          {activeThreadId
-            ? isConnected
-              ? "Realtime sync connected"
-              : "Realtime sync reconnecting"
-            : "Draft mode"}
+        <div className="text-xs uppercase tracking-wide text-white/45">
+          {activeThreadId ? (isConnected ? "Live" : "Syncing") : "Draft mode"}
         </div>
       </div>
 
-      <div ref={containerRef} className="flex-1 overflow-y-auto p-5">
+      <div
+        ref={containerRef}
+        className="flex-1 overflow-y-auto px-4 py-5 sm:px-6 sm:py-6"
+      >
         {!activeThreadId ? (
           <div className="flex h-full items-center justify-center">
-            <div className="max-w-md rounded-[1.75rem] border border-dashed border-white/10 bg-white/[0.04] px-6 py-8 text-center">
-              <p className="text-xs uppercase tracking-[0.28em] text-white/35">
-                New conversation
-              </p>
-              <h2 className="mt-3 font-heading text-2xl font-medium text-white">
-                Start a clean thread
-              </h2>
-              <p className="mt-3 text-sm leading-6 text-white/50">
-                Write your first message below. The archive entry is created only
-                after that first send.
-              </p>
+            <div className="w-full max-w-216 px-2">
+              <div className="mx-auto max-w-md rounded-[1.75rem] border border-dashed border-white/10 bg-[linear-gradient(180deg,rgba(255,140,56,0.07),rgba(255,255,255,0.025))] p-7 text-center">
+                <h2 className="font-heading text-xl font-medium text-white">
+                  Start a clean thread
+                </h2>
+              </div>
             </div>
           </div>
         ) : allMessages.length === 0 ? (
-          <div className="flex h-full items-center justify-center text-center text-sm text-white/45">
+          <div className="mx-auto flex h-full w-full max-w-216 items-center justify-center px-2 text-center text-sm text-white/45">
             No messages yet. Start the conversation.
           </div>
         ) : (
-          <div className="space-y-1">
+          <div className="mx-auto w-full max-w-216 space-y-5 px-2">
             {allMessages.map((message, index) => {
               const prevMessage = index > 0 ? allMessages[index - 1] : null;
               const showHeader =
@@ -237,57 +214,77 @@ export const RealtimeChat = ({
       </div>
 
       {streamError ? (
-        <div className="border-t border-white/10 px-5 py-4 text-sm">
-          <p className="text-red-200">{streamError}</p>
-          {isQuotaExceeded ? (
-            <div className="mt-3 flex gap-2">
-              <Button asChild size="sm">
-                <Link href="/auth/login">Sign in</Link>
-              </Button>
-              <Button asChild size="sm" variant="outline">
-                <Link href="/auth/sign-up">Create account</Link>
-              </Button>
-            </div>
-          ) : null}
+        <div className="border-t border-white/8 px-4 py-3 text-sm sm:px-6">
+          <div className="mx-auto w-full max-w-216 px-2">
+            <p className="text-red-200">{streamError}</p>
+            {isQuotaExceeded ? (
+              <div className="mt-3 flex gap-2">
+                <Button asChild size="sm">
+                  <Link href="/auth/login">Sign in</Link>
+                </Button>
+                <Button asChild size="sm" variant="outline">
+                  <Link href="/auth/sign-up">Create account</Link>
+                </Button>
+              </div>
+            ) : null}
+          </div>
         </div>
       ) : null}
 
       <form
         onSubmit={handleSendMessage}
-        className="flex w-full gap-3 border-t border-white/10 p-5"
+        className="border-t border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.015),rgba(255,140,56,0.06))] px-4 py-4 sm:px-6 sm:py-5"
       >
-        <Input
-          ref={inputRef}
-          className={cn(
-            "h-12 rounded-full border-white/10 bg-white/[0.04] px-5 text-sm text-white placeholder:text-white/35 transition-all duration-300",
-            newMessage.trim() ? "w-[calc(100%-48px)]" : "w-full",
-          )}
-          type="text"
-          value={newMessage}
-          onChange={(e) => {
-            setNewMessage(e.target.value);
-            if (streamError) {
-              clearStreamError();
-            }
-          }}
-          placeholder={
-            isQuotaExceeded ? "Sign in to keep chatting" : "Type a message..."
-          }
-          disabled={isPending || isQuotaExceeded}
-        />
-        {newMessage.trim() && (
+        <div className="mx-auto flex w-full max-w-216 gap-3 px-2">
+          <div className="relative flex-1">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="absolute top-1/2 left-2 z-10 -translate-y-1/2 text-white/55 hover:bg-white/8 hover:text-white"
+            >
+              <Paperclip />
+              <span className="sr-only">Add files</span>
+            </Button>
+            <Input
+              ref={inputRef}
+              className={cn(
+                "h-12 rounded-full border-white/10 bg-black/25 pl-12 pr-28 text-white placeholder:text-white/35",
+              )}
+              type="text"
+              value={newMessage}
+              onChange={(e) => {
+                setNewMessage(e.target.value);
+                if (streamError) {
+                  clearStreamError();
+                }
+              }}
+              placeholder={
+                isQuotaExceeded
+                  ? "Sign in to keep chatting"
+                  : "Type a message..."
+              }
+              disabled={isPending || isQuotaExceeded}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="absolute top-1/2 right-1.5 z-10 -translate-y-1/2 rounded-full border-white/10 bg-white/4 text-white/65 hover:bg-white/8 hover:text-white"
+            >
+              Model
+              <ChevronDown />
+            </Button>
+          </div>
           <Button
-            className="size-12 rounded-full bg-[#ff7a1a] text-black hover:bg-[#ff8b36]"
+            size="icon-lg"
+            className="h-12 w-12 rounded-full bg-[#ff7a1a] text-black hover:bg-[#ff8b36] disabled:bg-white/10 disabled:text-white/35"
             type="submit"
-            disabled={isPending || isQuotaExceeded}
+            disabled={isPending || isQuotaExceeded || !newMessage.trim()}
           >
-            {isPending ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Send className="size-4" />
-            )}
+            {isPending ? <Loader2 className="animate-spin" /> : <Send />}
           </Button>
-        )}
+        </div>
       </form>
     </div>
   );

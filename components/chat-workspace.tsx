@@ -6,17 +6,18 @@ import { MessageSquareText } from "lucide-react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { RealtimeChat } from "@/components/realtime-chat";
 import { ThemeSwitcher } from "@/components/theme-switcher";
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import {
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
 import { useChatThreadsQuery } from "@/hooks/use-chat-threads-query";
 
 export function ChatWorkspace() {
-  const {
-    data: threads,
-    isLoading: isThreadsLoading,
-  } = useChatThreadsQuery();
-  const [activeThreadId, setActiveThreadId] = useState<string | null | undefined>(
-    undefined,
-  );
+  const { data: threads, isLoading: isThreadsLoading } = useChatThreadsQuery();
+  const [activeThreadId, setActiveThreadId] = useState<
+    string | null | undefined
+  >(undefined);
   const [focusComposerSignal, setFocusComposerSignal] = useState(0);
 
   useEffect(() => {
@@ -44,7 +45,7 @@ export function ChatWorkspace() {
       defaultOpen
       style={
         {
-          "--sidebar-width": "22rem",
+          "--sidebar-width": "20rem",
           "--sidebar": "oklch(0.21 0.02 35)",
           "--sidebar-foreground": "oklch(0.96 0.01 80)",
           "--sidebar-accent": "oklch(0.26 0.02 35)",
@@ -66,46 +67,38 @@ export function ChatWorkspace() {
         onSelectThread={setActiveThreadId}
       />
       <SidebarInset className="min-h-screen bg-transparent text-white">
-        <div className="flex min-h-screen flex-col px-4 py-4 sm:px-6">
-          <div className="mx-auto flex w-full max-w-6xl items-center justify-between rounded-full border border-white/10 bg-white/5 px-3 py-2 backdrop-blur-md">
-            <div className="flex items-center gap-2">
+        <div className="flex min-h-screen flex-col gap-5 px-4 py-4 sm:px-6 sm:py-5">
+          <div className="mx-auto flex w-full max-w-295 items-center justify-between rounded-2xl border border-white/8 bg-white/4 px-4 py-3 backdrop-blur-md">
+            <div className="flex items-center gap-3">
               <SidebarTrigger className="text-white hover:bg-white/10 md:hidden" />
-              <div className="flex items-center gap-2 rounded-full bg-white/5 px-3 py-1.5 text-xs uppercase tracking-[0.28em] text-white/50">
-                <MessageSquareText className="size-3.5" />
+              <div className="flex h-9 items-center gap-2 rounded-full border border-white/8 bg-white/3 px-3.5 text-xs uppercase tracking-[0.22em] text-white/55">
+                <MessageSquareText className="size-4" />
                 Dialog Archive
               </div>
             </div>
             <ThemeSwitcher />
           </div>
 
-          <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col pt-6">
-            <div className="mb-4">
-              <p className="text-xs uppercase tracking-[0.3em] text-white/40">
-                Private assistant
-              </p>
-              <div className="mt-2 flex items-end justify-between gap-4">
-                <div>
-                  <h1 className="font-heading text-3xl font-medium text-white sm:text-4xl">
-                    {selectedThread?.title ?? "Start a new conversation"}
-                  </h1>
-                  <p className="mt-2 max-w-2xl text-sm text-white/60">
-                    Pick an archived chat from the sidebar or start clean with a
-                    fresh draft. The first message creates a persistent thread.
-                  </p>
-                </div>
-              </div>
+          <div className="mx-auto flex min-h-0 w-full max-w-295 flex-1 flex-col gap-5">
+            <div className="flex items-center justify-between gap-4 px-1 sm:px-2">
+              <h1 className="font-heading text-2xl font-medium text-white sm:text-3xl">
+                {selectedThread?.title ?? "New conversation"}
+              </h1>
             </div>
 
-            <RealtimeChat
-              activeThreadId={activeThreadId ?? null}
-              isArchiveLoading={isThreadsLoading && activeThreadId === undefined}
-              focusComposerSignal={focusComposerSignal}
-              onThreadCreated={setActiveThreadId}
-            />
+            <div className="flex min-h-0 flex-1">
+              <RealtimeChat
+                activeThreadId={activeThreadId ?? null}
+                isArchiveLoading={
+                  isThreadsLoading && activeThreadId === undefined
+                }
+                focusComposerSignal={focusComposerSignal}
+                onThreadCreated={setActiveThreadId}
+              />
+            </div>
           </div>
         </div>
       </SidebarInset>
     </SidebarProvider>
   );
 }
-

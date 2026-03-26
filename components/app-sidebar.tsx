@@ -2,19 +2,23 @@
 
 import { PenSquare } from "lucide-react";
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 import { LogoutButton } from "@/components/logout-button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarSeparator,
 } from "@/components/ui/sidebar";
 import { useBrowserAuth } from "@/hooks/use-browser-auth";
 import type { ChatThreadSummary } from "@/lib/types/chat";
@@ -39,6 +43,14 @@ function formatUpdatedAt(value: string) {
   });
 }
 
+function SidebarNotice({ children }: { children: ReactNode }) {
+  return (
+    <div className="rounded-xl border border-dashed border-white/10 bg-white/3 p-4 text-sm leading-6 text-white/50">
+      {children}
+    </div>
+  );
+}
+
 export function AppSidebar({
   threads,
   isLoading,
@@ -47,92 +59,120 @@ export function AppSidebar({
   onSelectThread,
 }: AppSidebarProps) {
   const { user, isAnonymous, isLoading: isAuthLoading } = useBrowserAuth();
-  const showGuestActions = !isAuthLoading && (isAnonymous || !user);
-  const showLogoutAction = !isAuthLoading && user && !isAnonymous;
-  const sessionTitle = isAnonymous || !user ? "Guest session" : user.displayName;
-  const sessionDescription =
-    isAnonymous || !user
-      ? "Sign in to keep your chats and continue later"
-      : "Authenticated and persistent";
+  const isGuestSession = isAnonymous || !user;
+  const showGuestActions = !isAuthLoading && isGuestSession;
+  const showLogoutAction = !isAuthLoading && !isGuestSession;
+  const sessionTitle = isGuestSession
+    ? "Guest session"
+    : (user.displayName ?? user.email ?? "Account");
+  const sessionDescription = isGuestSession
+    ? "Sign in to keep your chats and continue later"
+    : "Authenticated and persistent";
 
   return (
     <Sidebar
       variant="floating"
       collapsible="offcanvas"
-      className="border-r-0 p-3 md:p-5"
+      className={cn(
+        "border-r-0 p-2 sm:p-3",
+        "*:data-[slot=sidebar-inner]:overflow-hidden",
+        "*:data-[slot=sidebar-inner]:rounded-[1.75rem]",
+        "*:data-[slot=sidebar-inner]:shadow-[0_24px_80px_rgba(0,0,0,0.38)]",
+        "*:data-[slot=sidebar-inner]:ring-white/10",
+      )}
     >
-      <div className="flex h-full flex-col rounded-[2rem] border border-white/8 bg-[linear-gradient(180deg,rgba(55,34,21,0.9),rgba(18,18,18,0.98))] shadow-[0_22px_60px_rgba(0,0,0,0.45)] ring-1 ring-white/5">
-        <SidebarHeader className="gap-4 px-4 pt-4 pb-2">
-          <div className="text-[0.7rem] uppercase tracking-[0.32em] text-white/35">
-            Dialog Archive
+      <div className="flex h-full flex-col bg-[linear-gradient(180deg,rgba(43,31,24,0.97),rgba(25,24,24,0.985)_30%,rgba(20,20,20,0.995))] text-white">
+        <SidebarHeader className="gap-4 border-b border-white/8 px-4 pb-5 pt-5">
+          <div className="mx-auto flex w-full max-w-68 items-start justify-between gap-3">
+            <div className="space-y-1">
+              <div className="text-[0.65rem] uppercase tracking-[0.24em] text-white/35">
+                Dialog Archive
+              </div>
+              <h2 className="font-heading text-[1.35rem] font-medium text-white">
+                Chats
+              </h2>
+            </div>
+            <div className="rounded-full border border-white/8 bg-white/4 px-2.5 py-1 text-[0.7rem] font-medium uppercase tracking-[0.2em] text-white/45">
+              {threads.length}
+            </div>
           </div>
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="font-heading text-2xl font-medium text-white">
-              Chats
-            </h2>
+          <div className="mx-auto w-full max-w-68">
             <Button
-              size="sm"
+              size="lg"
               onClick={onNewChat}
-              className="bg-[#ff7a1a] px-4 text-[0.8rem] font-medium text-black hover:bg-[#ff8b36]"
+              className="h-12 w-full justify-start rounded-2xl border border-white/8 bg-white/5 px-4 text-white shadow-none hover:bg-white/9"
             >
-              <PenSquare className="size-3.5" />
+              <PenSquare />
               New
             </Button>
           </div>
         </SidebarHeader>
 
-        <SidebarContent className="px-3 pb-2">
+        <SidebarContent className="gap-4 px-0 pb-4 pt-4">
           {isLoading ? (
-            <div className="rounded-[1.75rem] border border-dashed border-white/10 bg-white/[0.03] px-4 py-5 text-sm text-white/45">
-              Loading archived conversations...
+            <div className="mx-auto w-full max-w-68">
+              <SidebarNotice>Loading archived conversations...</SidebarNotice>
             </div>
           ) : null}
 
           {!isLoading && threads.length === 0 ? (
-            <div className="rounded-[1.75rem] border border-dashed border-white/10 bg-white/[0.03] px-4 py-5 text-sm leading-7 text-white/45">
-              No conversations yet. Start one to see synced history and attached
-              references here.
+            <div className="mx-auto w-full max-w-68">
+              <SidebarNotice>
+                No conversations yet. Start one to see synced history and
+                attached references here.
+              </SidebarNotice>
             </div>
           ) : null}
 
           {!isLoading && threads.length > 0 ? (
-            <SidebarMenu className="gap-2">
-              {threads.map((thread) => (
-                <SidebarMenuItem key={thread.id}>
-                  <SidebarMenuButton
-                    type="button"
-                    isActive={thread.id === activeThreadId}
-                    onClick={() => onSelectThread(thread.id)}
-                    className={cn(
-                      "h-auto min-h-16 items-start rounded-[1.5rem] border border-transparent bg-white/[0.03] px-4 py-3 text-white/85 hover:bg-white/[0.06] data-[active=true]:border-white/12 data-[active=true]:bg-white/[0.08] data-[active=true]:text-white",
-                    )}
-                  >
-                    <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                      <div className="flex items-start justify-between gap-3">
-                        <span className="truncate text-sm font-medium">
-                          {thread.title ?? "Untitled chat"}
-                        </span>
-                        <span className="shrink-0 text-[0.68rem] uppercase tracking-[0.22em] text-white/35">
-                          {formatUpdatedAt(thread.updatedAt)}
-                        </span>
-                      </div>
-                      <span className="line-clamp-2 text-xs leading-5 text-white/45">
-                        {thread.preview}
-                      </span>
-                    </div>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
+            <SidebarGroup className="mx-auto w-full max-w-68 gap-3 p-0">
+              <SidebarGroupLabel className="h-auto px-1 text-[0.7rem] uppercase tracking-[0.22em] text-white/35">
+                Recent
+              </SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu className="gap-1.5">
+                  {threads.map((thread) => (
+                    <SidebarMenuItem key={thread.id}>
+                      <SidebarMenuButton
+                        type="button"
+                        isActive={thread.id === activeThreadId}
+                        onClick={() => onSelectThread(thread.id)}
+                        className={cn(
+                          "h-auto items-start rounded-2xl border border-transparent bg-transparent px-3 py-3.5 text-white/72 shadow-none hover:bg-white/6 hover:text-white data-[active=true]:border-white/8 data-[active=true]:bg-white/11 data-[active=true]:text-white",
+                        )}
+                      >
+                        <div className="flex min-w-0 flex-1 flex-col gap-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <span className="line-clamp-1 text-[0.95rem] font-medium leading-5">
+                              {thread.title ?? "Untitled chat"}
+                            </span>
+                            <span className="shrink-0 pt-0.5 text-[0.7rem] text-white/35">
+                              {formatUpdatedAt(thread.updatedAt)}
+                            </span>
+                          </div>
+                          <span className="line-clamp-2 text-xs leading-5 text-white/42">
+                            {thread.preview || "Continue this conversation."}
+                          </span>
+                        </div>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
           ) : null}
         </SidebarContent>
 
-        <SidebarFooter className="mt-auto p-3">
-          <Card className="gap-4 rounded-[1.75rem] border border-white/8 bg-white/[0.04] py-4 text-white shadow-none ring-0">
-            <CardContent className="flex items-center gap-3 px-4">
-              <Avatar className="bg-white/[0.04]">
+        <SidebarSeparator className="mx-auto w-full max-w-68 bg-white/8" />
+
+        <SidebarFooter className="mt-auto px-4 pb-5 pt-4">
+          <div className="mx-auto w-full max-w-68 rounded-[1.4rem] bg-white/4.5 p-4 ring-1 ring-white/10">
+            <div className="flex items-center gap-3">
+              <Avatar className="bg-white/4">
                 <AvatarFallback className="bg-transparent text-white/70">
-                  {isAuthLoading ? "..." : getInitial(user?.displayName ?? user?.email)}
+                  {isAuthLoading
+                    ? "..."
+                    : getInitial(user?.displayName ?? user?.email)}
                 </AvatarFallback>
               </Avatar>
               <div className="min-w-0">
@@ -141,22 +181,22 @@ export function AppSidebar({
                 </p>
                 <p className="text-sm text-white/45">{sessionDescription}</p>
               </div>
-            </CardContent>
-            <CardFooter className="px-4">
+            </div>
+            <div className="mt-4">
               {showGuestActions ? (
                 <div className="flex w-full gap-2">
                   <Button
                     asChild
                     variant="outline"
                     size="sm"
-                    className="flex-1 justify-center rounded-full border-white/10 bg-white/[0.03] text-white hover:bg-white/[0.08] hover:text-white"
+                    className="flex-1 justify-center border-white/10 bg-white/3 text-white hover:bg-white/8 hover:text-white"
                   >
                     <Link href="/auth/login">Sign in</Link>
                   </Button>
                   <Button
                     asChild
                     size="sm"
-                    className="flex-1 justify-center rounded-full bg-[#ff7a1a] text-black hover:bg-[#ff8b36]"
+                    className="flex-1 justify-center bg-[#ff7a1a] text-black hover:bg-[#ff8b36]"
                   >
                     <Link href="/auth/sign-up">Sign up</Link>
                   </Button>
@@ -166,7 +206,7 @@ export function AppSidebar({
                 <LogoutButton
                   variant="outline"
                   size="sm"
-                  className="w-full justify-center rounded-full border-white/10 bg-white/[0.03] text-white hover:bg-white/[0.08] hover:text-white"
+                  className="w-full justify-center border-white/10 bg-white/3 text-white hover:bg-white/8 hover:text-white"
                 />
               ) : null}
               {isAuthLoading ? (
@@ -174,13 +214,13 @@ export function AppSidebar({
                   variant="outline"
                   size="sm"
                   disabled
-                  className="w-full justify-center rounded-full border-white/10 bg-white/[0.03] text-white/50"
+                  className="w-full justify-center border-white/10 bg-white/3 text-white/50"
                 >
                   Loading...
                 </Button>
               ) : null}
-            </CardFooter>
-          </Card>
+            </div>
+          </div>
         </SidebarFooter>
       </div>
     </Sidebar>
