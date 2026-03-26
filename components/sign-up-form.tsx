@@ -6,6 +6,7 @@ import { useBrowserAuth } from "@/hooks/use-browser-auth";
 import { cn } from "@/lib/utils";
 import { signup } from "@/lib/api/auth";
 import { Button } from "@/components/ui/button";
+import { AuthBackButton } from "@/components/auth-back-button";
 import {
   Card,
   CardContent,
@@ -80,6 +81,7 @@ export function SignUpForm({
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
+      <AuthBackButton />
       <Card>
         <CardHeader>
           <CardTitle className="text-2xl">Sign up</CardTitle>
