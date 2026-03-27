@@ -1,109 +1,149 @@
-<a href="https://demo-nextjs-with-supabase.vercel.app/">
-  <img alt="Next.js and Supabase Starter Kit - the fastest way to build apps with Next.js and Supabase" src="https://demo-nextjs-with-supabase.vercel.app/opengraph-image.png">
-  <h1 align="center">Next.js and Supabase Starter Kit</h1>
-</a>
+# Yet another API wrapper
 
-<p align="center">
- The fastest way to build apps with Next.js and Supabase
-</p>
+A Next.js chat app with Supabase-backed auth, persisted conversation threads, file attachments, and streaming responses from multiple AI providers.
 
-<p align="center">
-  <a href="#features"><strong>Features</strong></a> ·
-  <a href="#demo"><strong>Demo</strong></a> ·
-  <a href="#deploy-to-vercel"><strong>Deploy to Vercel</strong></a> ·
-  <a href="#clone-and-run-locally"><strong>Clone and run locally</strong></a> ·
-  <a href="#feedback-and-issues"><strong>Feedback and issues</strong></a>
-  <a href="#more-supabase-examples"><strong>More Examples</strong></a>
-</p>
-<br/>
+## What This Project Includes
 
-## Features
+- Guest chat with a 3-message free quota
+- Email/password sign up, sign in, password reset, email confirmation, and Google OAuth
+- Upgrade path from anonymous session to full account with chat history migration
+- Threaded chat archive in the sidebar
+- Streaming assistant responses over Server-Sent Events
+- Model switching between OpenAI and Google AI models
+- Attachments for images, PDFs, TXTs
+- Supabase Storage for files, and Realtime for thread broadcasts
 
-- Works across the entire [Next.js](https://nextjs.org) stack
-  - App Router
-  - Pages Router
-  - Proxy
-  - Client
-  - Server
-  - It just works!
-- supabase-ssr. A package to configure Supabase Auth to use cookies
-- Password-based authentication block installed via the [Supabase UI Library](https://supabase.com/ui/docs/nextjs/password-based-auth)
-- Styling with [Tailwind CSS](https://tailwindcss.com)
-- Components with [shadcn/ui](https://ui.shadcn.com/)
-- Optional deployment with [Supabase Vercel Integration and Vercel deploy](#deploy-your-own)
-  - Environment variables automatically assigned to Vercel project
+## Models
 
-## Demo
+The UI currently exposes:
 
-You can view a fully working demo at [demo-nextjs-with-supabase.vercel.app](https://demo-nextjs-with-supabase.vercel.app/).
+- `gpt-5.4` via OpenAI (I don't have API key, so model always return error)
+- `gemini-2.5-flash` via Google AI (Also really limited key, so if it doesn't work you know why)
+- `gemma-3-27b-it` via Google AI (Somewhat usable but super dumb)
 
-## Deploy to Vercel
+Gemma-3 is the default selection. If you want a OpenAI model to be the default in a local setup, update `DEFAULT_CHAT_MODEL` in `lib/ai/providers.ts`.
 
-Vercel deployment will guide you through creating a Supabase account and project.
+## Tech Stack
 
-After installation of the Supabase integration, all relevant environment variables will be assigned to the project so the deployment is fully functioning.
+- Next.js App Router
+- React 19
+- TypeScript
+- Tailwind CSS v4
+- shadcn/ui
+- TanStack Query
+- Supabase Auth, Postgres, Storage, and Realtime
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-supabase&project-name=nextjs-with-supabase&repository-name=nextjs-with-supabase&demo-title=nextjs-with-supabase&demo-description=This+starter+configures+Supabase+Auth+to+use+cookies%2C+making+the+user%27s+session+available+throughout+the+entire+Next.js+app+-+Client+Components%2C+Server+Components%2C+Route+Handlers%2C+Server+Actions+and+Middleware.&demo-url=https%3A%2F%2Fdemo-nextjs-with-supabase.vercel.app%2F&external-id=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-supabase&demo-image=https%3A%2F%2Fdemo-nextjs-with-supabase.vercel.app%2Fopengraph-image.png)
+## Local Setup
 
-The above will also clone the Starter kit to your GitHub, you can clone that locally and develop locally.
+### 1. Install dependencies
 
-If you wish to just develop locally and not deploy to Vercel, [follow the steps below](#clone-and-run-locally).
+```bash
+npm install
+```
 
-## Clone and run locally
+### 2. Create your environment file
 
-1. You'll first need a Supabase project which can be made [via the Supabase dashboard](https://database.new)
+Copy `.env.example` to `.env.local` and fill in the values:
 
-2. Create a Next.js app using the Supabase Starter template npx command
+```env
+NEXT_PUBLIC_SUPABASE_URL=your-project-url
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-publishable-or-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+OPENAI_API_KEY=your-openai-api-key
+GOOGLE_AI_API_KEY=your-google-ai-api-key
+```
 
-   ```bash
-   npx create-next-app --example with-supabase with-supabase-app
-   ```
+Notes:
 
-   ```bash
-   yarn create next-app --example with-supabase with-supabase-app
-   ```
+- `SUPABASE_SERVICE_ROLE_KEY` is required because server routes use an admin client for chat persistence, attachment access, and storage operations.
+- Keep `SUPABASE_SERVICE_ROLE_KEY`, `OPENAI_API_KEY`, and `GOOGLE_AI_API_KEY` server-only.
+- You only need to provide keys for the providers you plan to use, but the default UI model is Google.
 
-   ```bash
-   pnpm create next-app --example with-supabase with-supabase-app
-   ```
+### 3. Configure Supabase Auth
 
-3. Use `cd` to change into the app's directory
+In your Supabase project:
 
-   ```bash
-   cd with-supabase-app
-   ```
+- Enable Email auth for account sign-up and sign-in.
+- Enable the Google provider if you want "Continue with Google" on the auth screens.
+- Enable the Anonymous provider if you want guest chat to work.
+- Enable realtime for chat_messages table
 
-4. Rename `.env.example` to `.env.local` and update the following:
+For Google OAuth, add your callback URL to the Supabase Auth redirect allow list:
 
-  ```env
-  NEXT_PUBLIC_SUPABASE_URL=[INSERT SUPABASE PROJECT URL]
-  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=[INSERT SUPABASE PROJECT API PUBLISHABLE OR ANON KEY]
-  ```
-  > [!NOTE]
-  > This example uses `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, which refers to Supabase's new **publishable** key format.
-  > Both legacy **anon** keys and new **publishable** keys can be used with this variable name during the transition period. Supabase's dashboard may show `NEXT_PUBLIC_SUPABASE_ANON_KEY`; its value can be used in this example.
-  > See the [full announcement](https://github.com/orgs/supabase/discussions/29260) for more information.
+- Local: `http://localhost:3000/auth/callback`
+- Production: `https://your-domain.com/auth/callback`
 
-  Both `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` can be found in [your Supabase project's API settings](https://supabase.com/dashboard/project/_?showConnect=true)
+Also make sure the Google OAuth app itself is configured with Supabase's callback URL as an authorized redirect URI:
 
-5. You can now run the Next.js local development server:
+- `https://YOUR_PROJECT_REF.supabase.co/auth/v1/callback`
 
-   ```bash
-   npm run dev
-   ```
+If anonymous sign-ins are disabled, the authenticated account flows still work, but guest chat will be unavailable.
 
-   The starter kit should now be running on [localhost:3000](http://localhost:3000/).
+### 4. Apply the database migration
 
-6. This template comes with the default shadcn/ui style initialized. If you instead want other ui.shadcn styles, delete `components.json` and [re-install shadcn/ui](https://ui.shadcn.com/docs/installation/next)
+Run the SQL in [`supabase/migrations/202603271500_initial_schema.sql`](./supabase/migrations/202603271500_initial_schema.sql) against your Supabase project.
 
-> Check out [the docs for Local Development](https://supabase.com/docs/guides/getting-started/local-development) to also run Supabase locally.
+This migration creates:
 
-## Feedback and issues
+- `chat_threads`
+- `chat_messages`
+- `chat_attachments`
+- `user_usage`
+- `app_sessions`
+- the `chat-attachments` storage bucket
+- helper functions for attachment linking, quota tracking, anonymous history migration, and Realtime topic access
 
-Please file feedback and issues over on the [Supabase GitHub org](https://github.com/supabase/supabase/issues/new/choose).
+There is no checked-in `supabase/config.toml` in this repo, so the simplest path is to apply the migration in the Supabase SQL editor or wire it into your own CLI workflow.
 
-## More Supabase examples
+### 5. Start the app
 
-- [Next.js Subscription Payments Starter](https://github.com/vercel/nextjs-subscription-payments)
-- [Cookie-based Auth and the Next.js 13 App Router (free course)](https://youtube.com/playlist?list=PL5S4mPUpp4OtMhpnp93EFSo42iQ40XjbF)
-- [Supabase Auth and the Next.js App Router](https://github.com/supabase/supabase/tree/master/examples/auth/nextjs)
+```bash
+npm run dev
+```
+
+The app will be available at `http://localhost:3000`.
+
+## Attachment Support
+
+Supported file types:
+
+- Images: `jpg`, `jpeg`, `png`, `webp`
+- Documents: `pdf`
+- Text-like files: `txt`, `md`, `markdown`, `json`, `csv`
+
+Current limits:
+
+- Up to 5 attachments per message
+- Images up to 8 MB
+- PDFs up to 12 MB
+- Text-like files up to 512 KB
+
+PDF and text attachments are extracted into text before being sent to the model. Image attachments are forwarded as image input where the selected model supports it.
+
+## Project Structure
+
+- [`app`](./app): App Router pages and API routes
+- [`components`](./components): chat UI, auth UI, and shared components
+- [`hooks`](./hooks): client-side chat and auth hooks
+- [`lib/auth`](./lib/auth): custom session management and upgrade flow
+- [`lib/chat`](./lib/chat): thread, message, quota, and Realtime logic
+- [`lib/attachments`](./lib/attachments): validation, extraction, storage, and access rules
+- [`lib/openai`](./lib/openai) and [`lib/google`](./lib/google): provider-specific streaming integrations
+- [`supabase/migrations`](./supabase/migrations): database schema
+
+## Scripts
+
+```bash
+npm run dev
+npm run build
+npm run start
+npm run lint
+```
+
+## Implementation Notes
+
+- Chat responses stream from `/api/chat/messages` using SSE.
+- Sessions are managed with an app-owned cookie plus records in `app_sessions`, rather than relying on the browser Supabase client to own long-lived auth state directly.
+- Guest users can chat immediately, then upgrade to an account and migrate their chat history.
+- Conversation lists and message history are persisted in Supabase and broadcast on per-thread Realtime topics.
+- Currently you don't need to verify email (Default supabase limitation is 2 mails per day, so for display purposes i disabled it(don't do this) as i dont have time to add custom smtp or oAuth)

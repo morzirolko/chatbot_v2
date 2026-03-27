@@ -10,8 +10,8 @@ export interface ChatModelOption {
   shortLabel: string;
 }
 
-export const DEFAULT_CHAT_MODEL: ChatModel = "gpt-5.4";
-export const DEFAULT_CHAT_PROVIDER: ChatProvider = "openai";
+export const DEFAULT_CHAT_MODEL: ChatModel = "gemma-3-27b-it";
+export const DEFAULT_CHAT_PROVIDER: ChatProvider = "google";
 
 export const CHAT_MODEL_OPTIONS: ChatModelOption[] = [
   {

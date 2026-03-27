@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { AuthBackButton } from "@/components/auth-back-button";
+import { GoogleAuthButton } from "@/components/google-auth-button";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -90,66 +91,78 @@ export function SignUpForm({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSignUp}>
-            <div className="flex flex-col gap-6">
-              <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  placeholder="m@example.com"
-                  autoComplete="email"
-                  spellCheck={false}
-                  required
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  name="password"
-                  type="password"
-                  autoComplete="new-password"
-                  required
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="repeat-password">Repeat password</Label>
-                <Input
-                  id="repeat-password"
-                  name="repeatPassword"
-                  type="password"
-                  autoComplete="new-password"
-                  required
-                  value={repeatPassword}
-                  onChange={(event) => setRepeatPassword(event.target.value)}
-                />
-              </div>
-              {error ? (
-                <p role="alert" className="text-sm text-red-500">
-                  {error}
-                </p>
-              ) : null}
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={signUpMutation.isPending}
-              >
-                {signUpMutation.isPending ? "Creating an account…" : "Sign up"}
-              </Button>
+          <div className="flex flex-col gap-6">
+            <GoogleAuthButton
+              disabled={signUpMutation.isPending}
+              onError={setError}
+            />
+            <div className="relative text-center text-xs uppercase tracking-[0.18em] text-muted-foreground">
+              <div className="absolute inset-x-0 top-1/2 border-t border-border" />
+              <span className="relative bg-card px-2">Or create an account</span>
             </div>
-            <div className="mt-4 text-center text-sm">
-              Already have an account?{" "}
-              <Link href="/auth/login" className="underline underline-offset-4">
-                Log in
-              </Link>
-            </div>
-          </form>
+            {error ? (
+              <p role="alert" className="text-sm text-red-500">
+                {error}
+              </p>
+            ) : null}
+            <form onSubmit={handleSignUp}>
+              <div className="flex flex-col gap-6">
+                <div className="grid gap-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    placeholder="m@example.com"
+                    autoComplete="email"
+                    spellCheck={false}
+                    required
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    id="password"
+                    name="password"
+                    type="password"
+                    autoComplete="new-password"
+                    required
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="repeat-password">Repeat password</Label>
+                  <Input
+                    id="repeat-password"
+                    name="repeatPassword"
+                    type="password"
+                    autoComplete="new-password"
+                    required
+                    value={repeatPassword}
+                    onChange={(event) => setRepeatPassword(event.target.value)}
+                  />
+                </div>
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={signUpMutation.isPending}
+                >
+                  {signUpMutation.isPending
+                    ? "Creating an account..."
+                    : "Sign up"}
+                </Button>
+              </div>
+              <div className="mt-4 text-center text-sm">
+                Already have an account?{" "}
+                <Link href="/auth/login" className="underline underline-offset-4">
+                  Log in
+                </Link>
+              </div>
+            </form>
+          </div>
         </CardContent>
       </Card>
     </div>
