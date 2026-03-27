@@ -1,9 +1,5 @@
 import "server-only";
 
-import {
-  decryptSessionSecret,
-  encryptSessionSecret,
-} from "@/lib/auth/session-crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export interface AppSessionRecord {
@@ -40,16 +36,12 @@ export async function createAppSession(input: {
       email: input.email,
       display_name: input.displayName,
       is_anonymous: input.isAnonymous,
-      supabase_access_token_encrypted: encryptSessionSecret(
-        input.supabaseAccessToken,
-      ),
-      supabase_refresh_token_encrypted: encryptSessionSecret(
-        input.supabaseRefreshToken,
-      ),
+      supabase_access_token: input.supabaseAccessToken,
+      supabase_refresh_token: input.supabaseRefreshToken,
       supabase_access_token_expires_at: input.supabaseAccessTokenExpiresAt,
     })
     .select(
-      "id, session_token_hash, user_id, email, display_name, is_anonymous, supabase_access_token_encrypted, supabase_refresh_token_encrypted, supabase_access_token_expires_at, created_at, updated_at, last_refreshed_at",
+      "id, session_token_hash, user_id, email, display_name, is_anonymous, supabase_access_token, supabase_refresh_token, supabase_access_token_expires_at, created_at, updated_at, last_refreshed_at",
     )
     .single<AppSessionRow>();
 
@@ -65,7 +57,7 @@ export async function getAppSessionByTokenHash(sessionTokenHash: string) {
   const { data, error } = await supabase
     .from("app_sessions")
     .select(
-      "id, session_token_hash, user_id, email, display_name, is_anonymous, supabase_access_token_encrypted, supabase_refresh_token_encrypted, supabase_access_token_expires_at, created_at, updated_at, last_refreshed_at",
+      "id, session_token_hash, user_id, email, display_name, is_anonymous, supabase_access_token, supabase_refresh_token, supabase_access_token_expires_at, created_at, updated_at, last_refreshed_at",
     )
     .eq("session_token_hash", sessionTokenHash)
     .maybeSingle<AppSessionRow>();
@@ -93,18 +85,14 @@ export async function updateAppSessionTokens(input: {
       email: input.email,
       display_name: input.displayName,
       is_anonymous: input.isAnonymous,
-      supabase_access_token_encrypted: encryptSessionSecret(
-        input.supabaseAccessToken,
-      ),
-      supabase_refresh_token_encrypted: encryptSessionSecret(
-        input.supabaseRefreshToken,
-      ),
+      supabase_access_token: input.supabaseAccessToken,
+      supabase_refresh_token: input.supabaseRefreshToken,
       supabase_access_token_expires_at: input.supabaseAccessTokenExpiresAt,
       last_refreshed_at: new Date().toISOString(),
     })
     .eq("id", input.id)
     .select(
-      "id, session_token_hash, user_id, email, display_name, is_anonymous, supabase_access_token_encrypted, supabase_refresh_token_encrypted, supabase_access_token_expires_at, created_at, updated_at, last_refreshed_at",
+      "id, session_token_hash, user_id, email, display_name, is_anonymous, supabase_access_token, supabase_refresh_token, supabase_access_token_expires_at, created_at, updated_at, last_refreshed_at",
     )
     .single<AppSessionRow>();
 
@@ -143,8 +131,8 @@ interface AppSessionRow {
   email: string;
   display_name: string;
   is_anonymous: boolean;
-  supabase_access_token_encrypted: string;
-  supabase_refresh_token_encrypted: string;
+  supabase_access_token: string;
+  supabase_refresh_token: string;
   supabase_access_token_expires_at: string;
   created_at: string;
   updated_at: string;
@@ -164,10 +152,10 @@ function mapAppSessionRecord(row: AppSessionRow): AppSessionRecord {
     updated_at: row.updated_at,
     last_refreshed_at: row.last_refreshed_at,
     getSupabaseAccessToken() {
-      return decryptSessionSecret(row.supabase_access_token_encrypted);
+      return row.supabase_access_token;
     },
     getSupabaseRefreshToken() {
-      return decryptSessionSecret(row.supabase_refresh_token_encrypted);
+      return row.supabase_refresh_token;
     },
   };
 }

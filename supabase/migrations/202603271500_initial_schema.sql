@@ -94,10 +94,10 @@ create table if not exists public.app_sessions (
   email text,
   display_name text check (char_length(trim(display_name)) > 0),
   is_anonymous boolean not null default false,
-  supabase_access_token_encrypted text not null
-    check (char_length(trim(supabase_access_token_encrypted)) > 0),
-  supabase_refresh_token_encrypted text not null
-    check (char_length(trim(supabase_refresh_token_encrypted)) > 0),
+  supabase_access_token text not null
+    check (char_length(trim(supabase_access_token)) > 0),
+  supabase_refresh_token text not null
+    check (char_length(trim(supabase_refresh_token)) > 0),
   supabase_access_token_expires_at timestamptz not null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
