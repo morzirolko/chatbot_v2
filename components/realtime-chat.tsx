@@ -94,6 +94,8 @@ export const RealtimeChat = ({
     CHAT_PROVIDER_OPTIONS.find(
       (providerOption) => providerOption.provider === selectedProvider,
     ) ?? CHAT_PROVIDER_OPTIONS[0];
+  const selectedProviderMobileLabel =
+    selectedProvider === "google" ? "Gemini" : selectedProviderOption.modelLabel;
 
   const allMessages = useMemo(() => {
     const persistedMessages = threadData?.messages ?? [];
@@ -237,7 +239,7 @@ export const RealtimeChat = ({
               No messages yet. Start the conversation.
             </div>
           ) : (
-            <div className="mx-auto flex w-full max-w-216 flex-col gap-5 px-6 py-4">
+            <div className="mx-auto flex w-full max-w-216 flex-col gap-5 px-4 py-4 sm:px-6">
               {allMessages.map((message, index) => {
                 const prevMessage = index > 0 ? allMessages[index - 1] : null;
                 const showHeader =
@@ -326,9 +328,14 @@ export const RealtimeChat = ({
                   <InputGroupButton
                     variant="outline"
                     size="sm"
-                    className="rounded-full border-white/10 bg-white/4 text-white/65 hover:bg-white/8 hover:text-white"
+                    className="max-w-32 rounded-full border-white/10 bg-white/4 text-white/65 hover:bg-white/8 hover:text-white sm:max-w-none"
                   >
-                    {selectedProviderOption.modelLabel}
+                    <span className="truncate sm:hidden">
+                      {selectedProviderMobileLabel}
+                    </span>
+                    <span className="hidden sm:inline">
+                      {selectedProviderOption.modelLabel}
+                    </span>
                     <ChevronDown data-icon="inline-end" />
                   </InputGroupButton>
                 </DropdownMenuTrigger>

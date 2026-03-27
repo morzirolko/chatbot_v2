@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import type { ChatMessage } from "@/lib/types/chat";
+import { ChatMarkdown } from "@/components/chat-markdown";
 
 interface ChatMessageItemProps {
   message: ChatMessage;
@@ -14,11 +15,16 @@ export const ChatMessageItem = ({
   showHeader,
   isStreaming = false,
 }: ChatMessageItemProps) => {
+  const bubbleClassName = isOwnMessage
+    ? "w-fit rounded-[1.6rem] bg-primary text-primary-foreground"
+    : "w-full rounded-[1.45rem] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.03))] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]";
+
   return (
     <div className={cn("flex", isOwnMessage ? "justify-end" : "justify-start")}>
       <div
-        className={cn("flex w-fit max-w-[75%] flex-col gap-1.5", {
-          "items-end": isOwnMessage,
+        className={cn("flex flex-col gap-1.5", {
+          "max-w-[82%] items-end sm:max-w-[75%]": isOwnMessage,
+          "max-w-[94%] sm:max-w-[88%] lg:max-w-[82%]": !isOwnMessage,
         })}
       >
         {showHeader && (
@@ -44,14 +50,16 @@ export const ChatMessageItem = ({
         )}
         <div
           className={cn(
-            "w-fit rounded-2xl px-3 py-2.5 text-sm leading-6",
+            "px-3 py-2.5 text-sm leading-6",
             isStreaming && "opacity-90",
-            isOwnMessage
-              ? "bg-primary text-primary-foreground"
-              : "bg-muted text-foreground",
+            bubbleClassName,
           )}
         >
-          {message.content}
+          {isOwnMessage ? (
+            <p className="whitespace-pre-wrap break-words">{message.content}</p>
+          ) : (
+            <ChatMarkdown content={message.content} />
+          )}
         </div>
       </div>
     </div>
