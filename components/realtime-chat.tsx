@@ -125,7 +125,11 @@ function AttachmentChip({
       {objectUrl ? (
         <div className="size-11 overflow-hidden rounded-xl border border-white/10 bg-white/6">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={objectUrl} alt={attachment.file.name} className="size-full object-cover" />
+          <img
+            src={objectUrl}
+            alt={attachment.file.name}
+            className="size-full object-cover"
+          />
         </div>
       ) : (
         <div className="flex size-11 items-center justify-center rounded-xl border border-white/10 bg-white/6 text-white/80">
@@ -140,7 +144,7 @@ function AttachmentChip({
             : attachment.status === "removing"
               ? "Removing..."
               : attachment.status === "error"
-                ? attachment.error ?? "Upload failed"
+                ? (attachment.error ?? "Upload failed")
                 : `${fileTypeLabel} - ${formatAttachmentSize(attachment.file.size)}`}
         </p>
       </div>
@@ -191,9 +195,8 @@ export function RealtimeChat({
     activeChannelName,
   );
   const [newMessage, setNewMessage] = useState("");
-  const [selectedModel, setSelectedModel] = useState<ChatModel>(
-    DEFAULT_CHAT_MODEL,
-  );
+  const [selectedModel, setSelectedModel] =
+    useState<ChatModel>(DEFAULT_CHAT_MODEL);
   const {
     queuedAttachments,
     readyAttachmentIds,
@@ -530,7 +533,7 @@ export function RealtimeChat({
                 <InputGroupInput
                   ref={inputRef}
                   className={cn(
-                    "h-full px-0 text-white placeholder:text-white/35",
+                    "h-full px-4 text-white placeholder:text-white/35",
                   )}
                   type="text"
                   value={newMessage}
@@ -547,7 +550,7 @@ export function RealtimeChat({
                   }
                   disabled={isPending || isQuotaExceeded}
                 />
-                <InputGroupAddon align="inline-end" className="gap-1 pr-1.5">
+                <InputGroupAddon align="inline-end" className="gap-1 pr-2.5">
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <InputGroupButton
