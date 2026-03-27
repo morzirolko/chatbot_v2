@@ -1,32 +1,38 @@
-import { AUTH_ERROR_MESSAGES } from "@/lib/auth/errors";
 import { NextResponse } from "next/server";
 
-import { createClient } from "@/lib/supabase/server";
+import {
+  clearAppSessionCookie,
+  destroyCurrentAppSession,
+  getCurrentAppSessionState,
+} from "@/lib/auth/app-session";
+import { signOutGatewaySession } from "@/lib/supabase/auth-gateway";
 
 export async function POST() {
-  const supabase = await createClient();
-  const { error } = await supabase.auth.signOut();
+  const sessionState = await getCurrentAppSessionState();
 
-  if (error) {
-    console.error("[api/auth/logout] Failed to sign out user.", error);
-
-    return NextResponse.json(
-      { error: AUTH_ERROR_MESSAGES.logout },
-      {
-        status: 400,
-        headers: {
-          "Cache-Control": "private, no-store",
-        },
-      },
-    );
+  if (sessionState.record) {
+    try {
+      await signOutGatewaySession({
+        accessToken: sessionState.record.supabase_access_token,
+        refreshToken: sessionState.record.supabase_refresh_token,
+      });
+    } catch (error) {
+      console.error("[api/auth/logout] Failed to sign out upstream session.", error);
+    }
   }
 
-  return NextResponse.json(
+  await destroyCurrentAppSession();
+
+  const response = NextResponse.json(
     { user: null },
     {
       headers: {
         "Cache-Control": "private, no-store",
       },
-    },
+    }
   );
+
+  clearAppSessionCookie(response);
+
+  return response;
 }

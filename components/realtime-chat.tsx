@@ -12,7 +12,12 @@ import { useChatThreadQuery } from "@/hooks/use-chat-thread-query";
 import { useRealtimeChat } from "@/hooks/use-realtime-chat";
 import { useSendMessageMutation } from "@/hooks/use-send-message-mutation";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 import type { ChatMessage } from "@/lib/types/chat";
 
 const STREAMING_MESSAGE_ID = "streaming-assistant-message";
@@ -236,20 +241,27 @@ export const RealtimeChat = ({
         className="border-t border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.015),rgba(255,140,56,0.06))] px-4 py-4 sm:px-6 sm:py-5"
       >
         <div className="mx-auto flex w-full max-w-216 gap-3 px-2">
-          <div className="relative flex-1">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              className="absolute top-1/2 left-2 z-10 -translate-y-1/2 text-white/55 hover:bg-white/8 hover:text-white"
+          <InputGroup
+            data-disabled={isPending || isQuotaExceeded}
+            className="h-12 flex-1 rounded-full border-white/10 bg-black/25 text-white"
+          >
+            <InputGroupAddon
+              align="inline-start"
+              className="pl-2 text-white/55"
             >
-              <Paperclip />
-              <span className="sr-only">Add files</span>
-            </Button>
-            <Input
+              <InputGroupButton
+                aria-label="Add files"
+                size="icon-sm"
+                variant="ghost"
+                className="text-white/55 hover:bg-white/8 hover:text-white"
+              >
+                <Paperclip />
+              </InputGroupButton>
+            </InputGroupAddon>
+            <InputGroupInput
               ref={inputRef}
               className={cn(
-                "h-12 rounded-full border-white/10 bg-black/25 pl-12 pr-28 text-white placeholder:text-white/35",
+                "h-full px-0 text-white placeholder:text-white/35",
               )}
               type="text"
               value={newMessage}
@@ -266,19 +278,20 @@ export const RealtimeChat = ({
               }
               disabled={isPending || isQuotaExceeded}
             />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="absolute top-1/2 right-1.5 z-10 -translate-y-1/2 rounded-full border-white/10 bg-white/4 text-white/65 hover:bg-white/8 hover:text-white"
-            >
-              Model
-              <ChevronDown />
-            </Button>
-          </div>
+            <InputGroupAddon align="inline-end" className="pr-1.5">
+              <InputGroupButton
+                variant="outline"
+                size="sm"
+                className="rounded-full border-white/10 bg-white/4 text-white/65 hover:bg-white/8 hover:text-white"
+              >
+                Model
+                <ChevronDown data-icon="inline-end" />
+              </InputGroupButton>
+            </InputGroupAddon>
+          </InputGroup>
           <Button
             size="icon-lg"
-            className="h-12 w-12 rounded-full bg-[#ff7a1a] text-black hover:bg-[#ff8b36] disabled:bg-white/10 disabled:text-white/35"
+            className="size-12 rounded-full bg-[#ff7a1a] text-black hover:bg-[#ff8b36] disabled:bg-white/10 disabled:text-white/35"
             type="submit"
             disabled={isPending || isQuotaExceeded || !newMessage.trim()}
           >

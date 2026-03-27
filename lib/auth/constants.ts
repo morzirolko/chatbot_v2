@@ -1,0 +1,3 @@
+export const APP_SESSION_COOKIE_NAME = "app_session"
+export const APP_SESSION_REFRESH_BUFFER_SECONDS = 60
+export const APP_SESSION_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30

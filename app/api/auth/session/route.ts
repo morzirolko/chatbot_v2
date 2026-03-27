@@ -1,13 +1,22 @@
 import { NextResponse } from "next/server";
 
-import { getBrowserSession } from "@/lib/auth/session";
+import {
+  buildBrowserSessionResponse,
+  clearAppSessionCookie,
+  getCurrentAppSessionState,
+} from "@/lib/auth/app-session";
 
 export async function GET() {
-  const session = await getBrowserSession();
-
-  return NextResponse.json(session, {
+  const sessionState = await getCurrentAppSessionState();
+  const response = NextResponse.json(buildBrowserSessionResponse(sessionState.record), {
     headers: {
       "Cache-Control": "private, no-store",
     },
   });
+
+  if (sessionState.shouldClearCookie) {
+    clearAppSessionCookie(response);
+  }
+
+  return response;
 }

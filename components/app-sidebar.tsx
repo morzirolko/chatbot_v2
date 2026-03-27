@@ -13,7 +13,6 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -76,34 +75,26 @@ export function AppSidebar({
       className={cn(
         "border-r-0 p-2 sm:p-3",
         "*:data-[slot=sidebar-inner]:overflow-hidden",
-        "*:data-[slot=sidebar-inner]:rounded-[1.75rem]",
+        "*:data-[slot=sidebar-inner]:rounded-xl",
         "*:data-[slot=sidebar-inner]:shadow-[0_24px_80px_rgba(0,0,0,0.38)]",
         "*:data-[slot=sidebar-inner]:ring-white/10",
       )}
     >
       <div className="flex h-full flex-col bg-[linear-gradient(180deg,rgba(43,31,24,0.97),rgba(25,24,24,0.985)_30%,rgba(20,20,20,0.995))] text-white">
         <SidebarHeader className="gap-4 border-b border-white/8 px-4 pb-5 pt-5">
-          <div className="mx-auto flex w-full max-w-68 items-start justify-between gap-3">
-            <div className="space-y-1">
-              <div className="text-[0.65rem] uppercase tracking-[0.24em] text-white/35">
-                Dialog Archive
-              </div>
-              <h2 className="font-heading text-[1.35rem] font-medium text-white">
-                Chats
-              </h2>
-            </div>
-            <div className="rounded-full border border-white/8 bg-white/4 px-2.5 py-1 text-[0.7rem] font-medium uppercase tracking-[0.2em] text-white/45">
-              {threads.length}
-            </div>
+          <div className="mx-auto flex w-full max-w-68 items-start justify-between ">
+            <h2 className="font-heading text-2xl font-medium text-white">
+              Chats
+            </h2>
           </div>
           <div className="mx-auto w-full max-w-68">
             <Button
               size="lg"
               onClick={onNewChat}
-              className="h-12 w-full justify-start rounded-2xl border border-white/8 bg-white/5 px-4 text-white shadow-none hover:bg-white/9"
+              className="h-12 w-full justify-start rounded-xl border border-white/8 bg-white/5 px-4 text-white shadow-none hover:bg-white/9"
             >
               <PenSquare />
-              New
+              New conversation
             </Button>
           </div>
         </SidebarHeader>
@@ -126,9 +117,6 @@ export function AppSidebar({
 
           {!isLoading && threads.length > 0 ? (
             <SidebarGroup className="mx-auto w-full max-w-68 gap-3 p-0">
-              <SidebarGroupLabel className="h-auto px-1 text-[0.7rem] uppercase tracking-[0.22em] text-white/35">
-                Recent
-              </SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu className="gap-1.5">
                   {threads.map((thread) => (

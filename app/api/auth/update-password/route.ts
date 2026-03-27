@@ -1,9 +1,10 @@
 import { AUTH_ERROR_MESSAGES } from "@/lib/auth/errors";
 import { NextResponse } from "next/server";
 
+import { getCurrentAppSessionState } from "@/lib/auth/app-session";
 import { AuthSessionError, requireAuthenticatedUser } from "@/lib/auth/session";
 import { mapSessionUser } from "@/lib/auth/user";
-import { createClient } from "@/lib/supabase/server";
+import { updateGatewayUser } from "@/lib/supabase/auth-gateway";
 
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as {
@@ -24,10 +25,8 @@ export async function POST(request: Request) {
     );
   }
 
-  let user: Awaited<ReturnType<typeof requireAuthenticatedUser>>;
-
   try {
-    user = await requireAuthenticatedUser({
+    await requireAuthenticatedUser({
       allowAnonymous: false,
     });
   } catch (error) {
@@ -46,13 +45,43 @@ export async function POST(request: Request) {
     throw error;
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user: updatedUser },
-    error,
-  } = await supabase.auth.updateUser({ password });
+  const sessionState = await getCurrentAppSessionState();
 
-  if (error) {
+  if (!sessionState.record) {
+    return NextResponse.json(
+      { error: "You must be signed in to update your password." },
+      {
+        status: 401,
+        headers: {
+          "Cache-Control": "private, no-store",
+        },
+      },
+    );
+  }
+
+  try {
+    const result = await updateGatewayUser(
+      {
+        accessToken: sessionState.record.supabase_access_token,
+        refreshToken: sessionState.record.supabase_refresh_token,
+      },
+      {
+        password,
+      },
+    );
+
+    return NextResponse.json(
+      {
+        user: mapSessionUser(result.user),
+        message: "Password updated.",
+      },
+      {
+        headers: {
+          "Cache-Control": "private, no-store",
+        },
+      },
+    );
+  } catch (error) {
     console.error(
       "[api/auth/update-password] Failed to update password.",
       error,
@@ -68,16 +97,4 @@ export async function POST(request: Request) {
       },
     );
   }
-
-  return NextResponse.json(
-    {
-      user: mapSessionUser(updatedUser ?? user),
-      message: "Password updated.",
-    },
-    {
-      headers: {
-        "Cache-Control": "private, no-store",
-      },
-    },
-  );
 }

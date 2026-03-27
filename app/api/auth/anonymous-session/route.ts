@@ -1,17 +1,38 @@
 import { NextResponse } from "next/server";
 
-import { getBrowserSession } from "@/lib/auth/session";
-import { createClient } from "@/lib/supabase/server";
+import {
+  attachAppSessionToResponse,
+  buildBrowserSessionResponse,
+  createManagedAppSession,
+} from "@/lib/auth/app-session";
+import { signInAnonymously } from "@/lib/supabase/auth-gateway";
 
 const ANONYMOUS_DISABLED_MESSAGE =
   "Guest chat is unavailable because Supabase anonymous sign-ins are disabled. Enable the Anonymous provider in Supabase Auth settings, or sign in with an account.";
 
 export async function POST() {
-  const supabase = await createClient();
-  const { error } = await supabase.auth.signInAnonymously();
+  try {
+    const session = await signInAnonymously();
+    const managedSession = await createManagedAppSession(session);
+    const response = NextResponse.json(
+      buildBrowserSessionResponse(managedSession.record),
+      {
+        headers: {
+          "Cache-Control": "private, no-store",
+        },
+      },
+    );
 
-  if (error) {
-    if (error.code === "anonymous_provider_disabled") {
+    attachAppSessionToResponse(response, managedSession);
+
+    return response;
+  } catch (error) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      error.code === "anonymous_provider_disabled"
+    ) {
       return NextResponse.json(
         { error: ANONYMOUS_DISABLED_MESSAGE },
         {
@@ -37,12 +58,4 @@ export async function POST() {
       },
     );
   }
-
-  const session = await getBrowserSession();
-
-  return NextResponse.json(session, {
-    headers: {
-      "Cache-Control": "private, no-store",
-    },
-  });
 }

@@ -1,8 +1,12 @@
 import { AUTH_ERROR_MESSAGES } from "@/lib/auth/errors";
 import { NextResponse } from "next/server";
 
+import {
+  attachAppSessionToResponse,
+  createManagedAppSession,
+} from "@/lib/auth/app-session";
 import { mapSessionUser } from "@/lib/auth/user";
-import { createClient } from "@/lib/supabase/server";
+import { signUpWithPassword } from "@/lib/supabase/auth-gateway";
 
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as {
@@ -26,16 +30,33 @@ export async function POST(request: Request) {
   }
 
   const redirectTo = new URL("/auth/confirm?next=/protected", request.url);
-  const supabase = await createClient();
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
+  try {
+    const result = await signUpWithPassword({
+      email,
+      password,
       emailRedirectTo: redirectTo.toString(),
-    },
-  });
+    });
 
-  if (error) {
+    const response = NextResponse.json(
+      {
+        user: result.user ? mapSessionUser(result.user) : null,
+        requiresEmailConfirmation: !result.session,
+        message: "Check your email to confirm your account.",
+      },
+      {
+        headers: {
+          "Cache-Control": "private, no-store",
+        },
+      },
+    );
+
+    if (result.session) {
+      const managedSession = await createManagedAppSession(result.session);
+      attachAppSessionToResponse(response, managedSession);
+    }
+
+    return response;
+  } catch (error) {
     console.error("[api/auth/signup] Failed to create account.", error);
 
     return NextResponse.json(
@@ -48,17 +69,4 @@ export async function POST(request: Request) {
       },
     );
   }
-
-  return NextResponse.json(
-    {
-      user: data.user ? mapSessionUser(data.user) : null,
-      requiresEmailConfirmation: !data.session,
-      message: "Check your email to confirm your account.",
-    },
-    {
-      headers: {
-        "Cache-Control": "private, no-store",
-      },
-    },
-  );
 }

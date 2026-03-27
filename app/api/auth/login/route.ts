@@ -1,8 +1,12 @@
 import { AUTH_ERROR_MESSAGES } from "@/lib/auth/errors";
 import { NextResponse } from "next/server";
 
+import {
+  attachAppSessionToResponse,
+  createManagedAppSession,
+} from "@/lib/auth/app-session";
 import { mapSessionUser } from "@/lib/auth/user";
-import { createClient } from "@/lib/supabase/server";
+import { signInWithPassword } from "@/lib/supabase/auth-gateway";
 
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as {
@@ -25,13 +29,32 @@ export async function POST(request: Request) {
     );
   }
 
-  const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
+  try {
+    const result = await signInWithPassword({
+      email,
+      password,
+    });
 
-  if (error) {
+    if (!result.session || !result.user) {
+      throw new Error("Login did not return a valid session.");
+    }
+
+    const managedSession = await createManagedAppSession(result.session);
+    const response = NextResponse.json(
+      {
+        user: mapSessionUser(result.user),
+      },
+      {
+        headers: {
+          "Cache-Control": "private, no-store",
+        },
+      },
+    );
+
+    attachAppSessionToResponse(response, managedSession);
+
+    return response;
+  } catch (error) {
     console.error("[api/auth/login] Failed to sign in user.", error);
 
     return NextResponse.json(
@@ -44,19 +67,4 @@ export async function POST(request: Request) {
       },
     );
   }
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  return NextResponse.json(
-    {
-      user: user ? mapSessionUser(user) : null,
-    },
-    {
-      headers: {
-        "Cache-Control": "private, no-store",
-      },
-    },
-  );
 }

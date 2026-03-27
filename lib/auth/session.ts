@@ -1,12 +1,12 @@
 import "server-only";
 
 import {
-  isAnonymousUser,
-  mapBrowserSessionUser,
-  mapSessionUser,
-} from "@/lib/auth/user";
+  buildBrowserSessionResponse,
+  getAuthenticatedAppUser,
+  getCurrentAppSessionState,
+} from "@/lib/auth/app-session";
+import { isAnonymousUser } from "@/lib/auth/user";
 import type { BrowserSessionResponse } from "@/lib/types/auth";
-import { createClient } from "@/lib/supabase/server";
 
 export class AuthSessionError extends Error {
   constructor(message = "Authentication required.") {
@@ -16,17 +16,7 @@ export class AuthSessionError extends Error {
 }
 
 export async function getAuthenticatedUser() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-
-  if (error) {
-    return null;
-  }
-
-  return user;
+  return getAuthenticatedAppUser();
 }
 
 export async function requireAuthenticatedUser(options?: {
@@ -46,29 +36,8 @@ export async function requireAuthenticatedUser(options?: {
 }
 
 export async function getBrowserSession() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-
-  if (error || !user) {
-    return {
-      user: null,
-      isAnonymous: false,
-      realtimeAccessToken: null,
-    } satisfies BrowserSessionResponse;
-  }
-
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  return {
-    user: mapBrowserSessionUser(user),
-    isAnonymous: isAnonymousUser(user),
-    realtimeAccessToken: session?.access_token ?? null,
-  } satisfies BrowserSessionResponse;
+  const { record } = await getCurrentAppSessionState();
+  return buildBrowserSessionResponse(record) satisfies BrowserSessionResponse;
 }
 
 export async function getSessionUser() {
@@ -78,5 +47,9 @@ export async function getSessionUser() {
     return null;
   }
 
-  return mapSessionUser(user);
+  return {
+    id: user.id,
+    email: user.email,
+    displayName: user.displayName,
+  };
 }

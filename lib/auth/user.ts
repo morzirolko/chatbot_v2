@@ -12,9 +12,26 @@ export function getUserDisplayName(
 }
 
 export function isAnonymousUser(
-  user: Pick<User, "is_anonymous"> | null | undefined,
+  user:
+    | Pick<User, "is_anonymous">
+    | {
+        isAnonymous?: boolean | null;
+      }
+    | null
+    | undefined,
 ) {
-  return user?.is_anonymous === true;
+  const anonymousFromSupabase =
+    typeof user === "object" &&
+    user !== null &&
+    "is_anonymous" in user &&
+    user.is_anonymous === true;
+  const anonymousFromAppSession =
+    typeof user === "object" &&
+    user !== null &&
+    "isAnonymous" in user &&
+    user.isAnonymous === true;
+
+  return anonymousFromSupabase || anonymousFromAppSession;
 }
 
 export function mapSessionUser(user: User): SessionUser {

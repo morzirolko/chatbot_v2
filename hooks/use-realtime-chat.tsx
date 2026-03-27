@@ -3,14 +3,15 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { upsertThreadMessage } from "@/lib/chat/cache";
+import { upsertThreadMessage, upsertThreadSummary } from "@/lib/chat/cache";
 import { CHAT_PERSISTED_MESSAGE_EVENT } from "@/lib/chat/realtime";
 import {
   chatThreadQueryKey,
-  chatThreadsQueryKey,
 } from "@/lib/query-keys";
+import { chatThreadsQueryKey } from "@/lib/query-keys";
 import { createClient } from "@/lib/supabase/client";
 import type { ChatMessage, ChatThreadResponse } from "@/lib/types/chat";
+import type { ChatThreadSummary } from "@/lib/types/chat";
 
 export function useRealtimeChat(
   threadId?: string | null,
@@ -66,9 +67,11 @@ export function useRealtimeChat(
                 );
               }
 
-              void queryClient.invalidateQueries({
-                queryKey: chatThreadsQueryKey,
-              });
+              queryClient.setQueryData<ChatThreadSummary[]>(
+                chatThreadsQueryKey,
+                (currentThreads) =>
+                  upsertThreadSummary(currentThreads, message),
+              );
             },
           )
           .subscribe((status, error) => {

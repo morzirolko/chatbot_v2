@@ -1,8 +1,21 @@
-import { updateSession } from "@/lib/supabase/proxy";
+import { APP_SESSION_COOKIE_NAME } from "@/lib/auth/constants";
 import { type NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 
 export async function proxy(request: NextRequest) {
-  return await updateSession(request);
+  const { pathname } = request.nextUrl;
+  const isApiRoute = pathname.startsWith("/api");
+  const isPublicRoute = pathname === "/" || pathname.startsWith("/auth");
+  const hasAppSession = request.cookies.has(APP_SESSION_COOKIE_NAME);
+
+  if (!hasAppSession && !isApiRoute && !isPublicRoute) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/auth/login";
+    url.search = "";
+    return NextResponse.redirect(url);
+  }
+
+  return NextResponse.next();
 }
 
 export const config = {

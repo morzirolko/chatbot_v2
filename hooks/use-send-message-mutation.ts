@@ -13,7 +13,6 @@ import { sendChatMessage } from "@/lib/api/chat";
 import { useBrowserAuth } from "@/hooks/use-browser-auth";
 import {
   chatThreadQueryKey,
-  chatThreadQueryKeyPrefix,
   chatThreadsQueryKey,
 } from "@/lib/query-keys";
 import type {
@@ -112,14 +111,6 @@ export function useSendMessageMutation(
       setStreamErrorCode(
         error instanceof ApiError ? (error.code ?? null) : null,
       );
-    },
-    onSettled: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: chatThreadsQueryKey,
-      });
-      await queryClient.invalidateQueries({
-        queryKey: chatThreadQueryKeyPrefix,
-      });
     },
   });
 
