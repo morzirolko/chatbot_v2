@@ -28,7 +28,7 @@ import type {
   BrowserSessionUser,
 } from "@/lib/types/auth";
 import { getQuestionCountForUser } from "@/lib/chat/repository";
-import { ANONYMOUS_FREE_QUESTION_LIMIT } from "@/lib/chat/service";
+import { ANONYMOUS_FREE_QUESTION_LIMIT } from "@/lib/chat/constants";
 
 interface AppSessionUser {
   id: string;

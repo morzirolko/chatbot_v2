@@ -5,6 +5,7 @@ import {
   hydrateMessagesForModel,
   validateAttachmentIds,
 } from "@/lib/attachments/service";
+import { ANONYMOUS_FREE_QUESTION_LIMIT } from "@/lib/chat/constants";
 import {
   createChatMessage,
   createChatMessageWithAttachmentsForUser,
@@ -19,8 +20,6 @@ import {
 } from "@/lib/chat/repository";
 import { buildThreadTitle } from "@/lib/chat/thread";
 import type { ChatMessage } from "@/lib/types/chat";
-
-export const ANONYMOUS_FREE_QUESTION_LIMIT = 3;
 
 export class AnonymousQuotaExceededError extends Error {
   constructor(

@@ -1,7 +1,5 @@
 import "server-only";
 
-import { PDFParse } from "pdf-parse";
-
 import type { HydratedChatMessage } from "@/lib/ai/attachment-context";
 import {
   deleteAttachmentObject,
@@ -141,8 +139,34 @@ function normalizeExtractedText(value: string) {
 }
 
 async function extractPdfText(fileBytes: Uint8Array) {
+  const runtimeRequire = eval("require") as (specifier: string) => unknown;
+  const canvas = runtimeRequire("@napi-rs/canvas") as {
+    DOMMatrix: unknown;
+    ImageData: unknown;
+    Path2D: unknown;
+  };
+  const { PDFParse } = runtimeRequire("pdf-parse") as {
+    PDFParse: new (input: { data: Uint8Array }) => {
+      destroy(): Promise<void>;
+      getText(): Promise<{ text?: string }>;
+    };
+  };
+
+  if (typeof globalThis.DOMMatrix === "undefined") {
+    Reflect.set(globalThis, "DOMMatrix", canvas.DOMMatrix);
+  }
+
+  if (typeof globalThis.Path2D === "undefined") {
+    Reflect.set(globalThis, "Path2D", canvas.Path2D);
+  }
+
+  if (typeof globalThis.ImageData === "undefined") {
+    Reflect.set(globalThis, "ImageData", canvas.ImageData);
+  }
+
   const parser = new PDFParse({ data: fileBytes });
   const result = await parser.getText();
+  await parser.destroy();
 
   return result.text ?? "";
 }

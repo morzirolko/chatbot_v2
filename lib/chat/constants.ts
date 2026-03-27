@@ -1,0 +1,1 @@
+export const ANONYMOUS_FREE_QUESTION_LIMIT = 3;
