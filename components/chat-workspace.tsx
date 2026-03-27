@@ -43,7 +43,7 @@ export function ChatWorkspace() {
           "--sidebar-ring": "oklch(0.75 0.16 55)",
         } as React.CSSProperties
       }
-      className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(255,145,59,0.12),transparent_28%),radial-gradient(circle_at_top_right,rgba(255,255,255,0.06),transparent_24%),linear-gradient(180deg,rgba(9,9,11,1),rgba(15,15,18,1))]"
+      className="h-svh overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(255,145,59,0.12),transparent_28%),radial-gradient(circle_at_top_right,rgba(255,255,255,0.06),transparent_24%),linear-gradient(180deg,rgba(9,9,11,1),rgba(15,15,18,1))]"
     >
       <AppSidebar
         threads={threads ?? []}
@@ -55,8 +55,8 @@ export function ChatWorkspace() {
         }}
         onSelectThread={setActiveThreadId}
       />
-      <SidebarInset className="min-h-screen bg-transparent text-white">
-        <div className="flex min-h-screen p-2 sm:p-3">
+      <SidebarInset className="min-h-0 overflow-hidden bg-transparent text-white">
+        <div className="flex min-h-0 flex-1 overflow-hidden p-2 sm:p-3">
           <div className="flex min-h-0 w-full flex-1">
             <RealtimeChat
               activeThreadId={activeThreadId ?? null}

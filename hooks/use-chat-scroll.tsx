@@ -6,7 +6,11 @@ export function useChatScroll() {
   const scrollToBottom = useCallback(() => {
     if (!containerRef.current) return;
 
-    const container = containerRef.current;
+    const container =
+      containerRef.current.querySelector<HTMLDivElement>(
+        "[data-slot='scroll-area-viewport']",
+      ) ?? containerRef.current;
+
     container.scrollTo({
       top: container.scrollHeight,
       behavior: "smooth",

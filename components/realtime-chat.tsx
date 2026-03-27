@@ -18,6 +18,7 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "@/components/ui/input-group";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import type { ChatMessage } from "@/lib/types/chat";
 
@@ -41,7 +42,6 @@ export const RealtimeChat = ({
   const {
     isAnonymous,
     isLoading: isAuthLoading,
-    realtimeAccessToken,
   } = useBrowserAuth();
   const {
     data: threadData,
@@ -51,7 +51,6 @@ export const RealtimeChat = ({
   const { broadcastMessage } = useRealtimeChat(
     activeThreadId,
     threadData?.thread.realtimeChannelName,
-    realtimeAccessToken,
   );
   const {
     sendMessage,
@@ -176,44 +175,46 @@ export const RealtimeChat = ({
           </div>
         </div>
       </div>
-      <div ref={containerRef} className="flex-1 overflow-y-auto px-4 py-4">
-        {!activeThreadId ? (
-          <div className="flex h-full items-center justify-center">
-            <div className="w-full max-w-216 px-2">
-              <div className="mx-auto max-w-md rounded-[1.75rem] border border-dashed border-white/10 bg-[linear-gradient(180deg,rgba(255,140,56,0.07),rgba(255,255,255,0.025))] p-7 text-center">
-                <h2 className="font-heading text-xl font-medium text-white">
-                  Start a clean thread
-                </h2>
+      <div ref={containerRef} className="min-h-0 flex-1">
+        <ScrollArea className="size-full overflow-hidden">
+          {!activeThreadId ? (
+            <div className="flex h-full items-center justify-center px-4 py-4">
+              <div className="w-full max-w-216 px-2">
+                <div className="mx-auto max-w-md rounded-[1.75rem] border border-dashed border-white/10 bg-[linear-gradient(180deg,rgba(255,140,56,0.07),rgba(255,255,255,0.025))] p-7 text-center">
+                  <h2 className="font-heading text-xl font-medium text-white">
+                    Start a clean thread
+                  </h2>
+                </div>
               </div>
             </div>
-          </div>
-        ) : allMessages.length === 0 ? (
-          <div className="mx-auto flex h-full w-full max-w-216 items-center justify-center px-2 text-center text-sm text-white/45">
-            No messages yet. Start the conversation.
-          </div>
-        ) : (
-          <div className="mx-auto flex w-full max-w-216 flex-col gap-5 px-2">
-            {allMessages.map((message, index) => {
-              const prevMessage = index > 0 ? allMessages[index - 1] : null;
-              const showHeader =
-                !prevMessage || prevMessage.role !== message.role;
+          ) : allMessages.length === 0 ? (
+            <div className="mx-auto flex h-full w-full max-w-216 items-center justify-center px-6 py-4 text-center text-sm text-white/45">
+              No messages yet. Start the conversation.
+            </div>
+          ) : (
+            <div className="mx-auto flex w-full max-w-216 flex-col gap-5 px-6 py-4">
+              {allMessages.map((message, index) => {
+                const prevMessage = index > 0 ? allMessages[index - 1] : null;
+                const showHeader =
+                  !prevMessage || prevMessage.role !== message.role;
 
-              return (
-                <div
-                  key={message.id}
-                  className="animate-in fade-in slide-in-from-bottom-4 duration-300"
-                >
-                  <ChatMessageItem
-                    message={message}
-                    isOwnMessage={message.role === "user"}
-                    showHeader={showHeader}
-                    isStreaming={message.id === STREAMING_MESSAGE_ID}
-                  />
-                </div>
-              );
-            })}
-          </div>
-        )}
+                return (
+                  <div
+                    key={message.id}
+                    className="animate-in fade-in slide-in-from-bottom-4 duration-300"
+                  >
+                    <ChatMessageItem
+                      message={message}
+                      isOwnMessage={message.role === "user"}
+                      showHeader={showHeader}
+                      isStreaming={message.id === STREAMING_MESSAGE_ID}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </ScrollArea>
       </div>
 
       {streamError ? (

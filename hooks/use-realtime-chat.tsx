@@ -16,7 +16,6 @@ import type { ChatThreadSummary } from "@/lib/types/chat";
 export function useRealtimeChat(
   threadId?: string | null,
   channelName?: string,
-  accessToken?: string | null,
 ) {
   const queryClient = useQueryClient();
   const supabase = useMemo(() => createClient(), []);
@@ -26,7 +25,7 @@ export function useRealtimeChat(
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    if (!channelName || !accessToken) {
+    if (!channelName) {
       setChannel(null);
       setIsConnected(false);
       return;
@@ -37,12 +36,6 @@ export function useRealtimeChat(
 
     const subscribeToChannel = async () => {
       try {
-        await supabase.realtime.setAuth(accessToken);
-
-        if (!isActive) {
-          return;
-        }
-
         newChannel = supabase.channel(channelName, {
           config: {
             broadcast: {
@@ -81,10 +74,16 @@ export function useRealtimeChat(
 
             setIsConnected(status === "SUBSCRIBED");
 
-            if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-              console.error(
+            if (status === "CHANNEL_ERROR") {
+              console.warn(
                 "[chat/realtime] Failed to subscribe to private chat channel.",
                 error,
+              );
+            }
+
+            if (status === "TIMED_OUT") {
+              console.warn(
+                "[chat/realtime] Subscription timed out. Realtime will retry automatically.",
               );
             }
           });
@@ -115,7 +114,7 @@ export function useRealtimeChat(
         void supabase.removeChannel(newChannel);
       }
     };
-  }, [accessToken, channelName, queryClient, supabase, threadId]);
+  }, [channelName, queryClient, supabase, threadId]);
 
   const broadcastMessage = useCallback(
     async (message: ChatMessage) => {
