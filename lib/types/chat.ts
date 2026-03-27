@@ -1,4 +1,4 @@
-import type { ChatProvider } from "@/lib/ai/providers";
+import type { ChatModel, ChatProvider } from "@/lib/ai/providers";
 
 export type ChatRole = "user" | "assistant";
 
@@ -34,6 +34,7 @@ export interface SendChatMessageInput {
   content: string;
   threadId?: string;
   provider?: ChatProvider;
+  model?: ChatModel;
 }
 
 export interface ChatMessageAckEvent {

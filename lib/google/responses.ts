@@ -7,10 +7,15 @@ import {
   type StreamAssistantResponseArgs,
   type StreamAssistantResponseResult,
 } from "@/lib/ai/config";
+import type { ChatModel } from "@/lib/ai/providers";
 import type { ChatMessage } from "@/lib/types/chat";
 import { readServerSentEvents } from "@/lib/utils/sse";
 
-const GOOGLE_CHAT_MODEL = "gemini-2.5-flash";
+const DEFAULT_GOOGLE_CHAT_MODEL = "gemini-2.5-flash";
+const GOOGLE_CHAT_MODELS = new Set<ChatModel>([
+  "gemini-2.5-flash",
+  "gemma-3-27b-it",
+]);
 
 interface GeminiStreamChunk {
   candidates?: Array<{
@@ -77,28 +82,58 @@ function getGoogleErrorMessage(payload: GeminiStreamChunk) {
   return "Google AI request failed.";
 }
 
+function buildGoogleRequestBody(
+  googleModel: ChatModel,
+  messages: ChatMessage[],
+) {
+  const isGemma = googleModel.startsWith("gemma");
+  const contents = buildConversationInput(messages);
+
+  if (isGemma) {
+    contents.unshift({
+      role: "user",
+      parts: [
+        {
+          text: `System Instructions: ${CHAT_SYSTEM_PROMPT}`,
+        },
+      ],
+    });
+
+    return { contents };
+  }
+
+  return {
+    system_instruction: {
+      parts: [
+        {
+          text: CHAT_SYSTEM_PROMPT,
+        },
+      ],
+    },
+    contents,
+  };
+}
+
 export async function streamGoogleAssistantResponse({
   messages,
+  model,
   onDelta,
-}: StreamAssistantResponseArgs): Promise<StreamAssistantResponseResult> {
+}: StreamAssistantResponseArgs & {
+  model?: ChatModel;
+}): Promise<StreamAssistantResponseResult> {
+  const googleModel = GOOGLE_CHAT_MODELS.has(model ?? DEFAULT_GOOGLE_CHAT_MODEL)
+    ? (model ?? DEFAULT_GOOGLE_CHAT_MODEL)
+    : DEFAULT_GOOGLE_CHAT_MODEL;
+
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GOOGLE_CHAT_MODEL}:streamGenerateContent?alt=sse`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${googleModel}:streamGenerateContent?alt=sse`,
     {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "x-goog-api-key": getGoogleAIKey(),
       },
-      body: JSON.stringify({
-        system_instruction: {
-          parts: [
-            {
-              text: CHAT_SYSTEM_PROMPT,
-            },
-          ],
-        },
-        contents: buildConversationInput(messages),
-      }),
+      body: JSON.stringify(buildGoogleRequestBody(googleModel, messages)),
     },
   );
 

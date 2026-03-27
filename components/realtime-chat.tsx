@@ -5,9 +5,11 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
-  CHAT_PROVIDER_OPTIONS,
-  DEFAULT_CHAT_PROVIDER,
-  type ChatProvider,
+  CHAT_MODEL_OPTIONS,
+  DEFAULT_CHAT_MODEL,
+  getDefaultChatModelForProvider,
+  isChatModel,
+  type ChatModel,
 } from "@/lib/ai/providers";
 import { getChatRealtimeChannelName } from "@/lib/chat/realtime";
 import type { ChatMessage } from "@/lib/types/chat";
@@ -37,7 +39,8 @@ import { useRealtimeChat } from "@/hooks/use-realtime-chat";
 import { useSendMessageMutation } from "@/hooks/use-send-message-mutation";
 
 const STREAMING_MESSAGE_ID = "streaming-assistant-message";
-const CHAT_PROVIDER_STORAGE_KEY = "chat-provider";
+const CHAT_MODEL_STORAGE_KEY = "chat-model";
+const LEGACY_CHAT_PROVIDER_STORAGE_KEY = "chat-provider";
 
 interface RealtimeChatProps {
   activeThreadId: string | null;
@@ -85,22 +88,19 @@ export function RealtimeChat({
     onCompleted: broadcastMessage,
   });
   const [newMessage, setNewMessage] = useState("");
-  const [selectedProvider, setSelectedProvider] = useState<ChatProvider>(
-    DEFAULT_CHAT_PROVIDER,
+  const [selectedModel, setSelectedModel] = useState<ChatModel>(
+    DEFAULT_CHAT_MODEL,
   );
   const isQuotaExceeded = isAnonymous && streamErrorCode === "quota_exceeded";
   const isAnonymousProviderDisabled =
     threadError instanceof Error &&
     threadError.message.includes("Supabase anonymous sign-ins are disabled");
   const chatTitle = threadData?.thread.title?.trim() || "New conversation";
-  const selectedProviderOption =
-    CHAT_PROVIDER_OPTIONS.find(
-      (providerOption) => providerOption.provider === selectedProvider,
-    ) ?? CHAT_PROVIDER_OPTIONS[0];
-  const selectedProviderMobileLabel =
-    selectedProvider === "google"
-      ? "Gemini"
-      : selectedProviderOption.modelLabel;
+  const selectedModelOption =
+    CHAT_MODEL_OPTIONS.find(
+      (modelOption) => modelOption.model === selectedModel,
+    ) ?? CHAT_MODEL_OPTIONS[0];
+  const selectedModelMobileLabel = selectedModelOption.shortLabel;
 
   const allMessages = useMemo(() => {
     const persistedMessages = threadData?.messages ?? [];
@@ -129,18 +129,28 @@ export function RealtimeChat({
   }, [focusComposerSignal]);
 
   useEffect(() => {
-    const storedProvider = window.localStorage.getItem(
-      CHAT_PROVIDER_STORAGE_KEY,
+    const storedModel = window.localStorage.getItem(CHAT_MODEL_STORAGE_KEY);
+
+    if (isChatModel(storedModel)) {
+      setSelectedModel(storedModel);
+      return;
+    }
+
+    const legacyStoredProvider = window.localStorage.getItem(
+      LEGACY_CHAT_PROVIDER_STORAGE_KEY,
     );
 
-    if (storedProvider === "openai" || storedProvider === "google") {
-      setSelectedProvider(storedProvider);
+    if (
+      legacyStoredProvider === "openai" ||
+      legacyStoredProvider === "google"
+    ) {
+      setSelectedModel(getDefaultChatModelForProvider(legacyStoredProvider));
     }
   }, []);
 
   useEffect(() => {
-    window.localStorage.setItem(CHAT_PROVIDER_STORAGE_KEY, selectedProvider);
-  }, [selectedProvider]);
+    window.localStorage.setItem(CHAT_MODEL_STORAGE_KEY, selectedModel);
+  }, [selectedModel]);
 
   const handleSendMessage = useCallback(
     async (event: React.FormEvent) => {
@@ -154,7 +164,7 @@ export function RealtimeChat({
       clearStreamError();
       await sendMessage({
         content,
-        provider: selectedProvider,
+        model: selectedModel,
       })
         .then(() => {
           setNewMessage("");
@@ -166,7 +176,7 @@ export function RealtimeChat({
       isPending,
       isQuotaExceeded,
       newMessage,
-      selectedProvider,
+      selectedModel,
       sendMessage,
     ],
   );
@@ -330,10 +340,10 @@ export function RealtimeChat({
                     className="max-w-32 rounded-full border-white/10 bg-white/4 text-white/65 hover:bg-white/8 hover:text-white sm:max-w-none"
                   >
                     <span className="truncate sm:hidden">
-                      {selectedProviderMobileLabel}
+                      {selectedModelMobileLabel}
                     </span>
                     <span className="hidden sm:inline">
-                      {selectedProviderOption.modelLabel}
+                      {selectedModelOption.modelLabel}
                     </span>
                     <ChevronDown data-icon="inline-end" />
                   </InputGroupButton>
@@ -343,25 +353,25 @@ export function RealtimeChat({
                   className="w-72 rounded-2xl border border-white/10 bg-[#121212] p-1 text-white shadow-2xl ring-white/10"
                 >
                   <DropdownMenuLabel className="text-white/45">
-                    AI provider
+                    AI model
                   </DropdownMenuLabel>
                   <DropdownMenuRadioGroup
-                    value={selectedProvider}
+                    value={selectedModel}
                     onValueChange={(value) =>
-                      setSelectedProvider(value as ChatProvider)
+                      setSelectedModel(value as ChatModel)
                     }
                   >
-                    {CHAT_PROVIDER_OPTIONS.map((providerOption) => (
+                    {CHAT_MODEL_OPTIONS.map((modelOption) => (
                       <DropdownMenuRadioItem
-                        key={providerOption.provider}
-                        value={providerOption.provider}
+                        key={modelOption.model}
+                        value={modelOption.model}
                         className="flex flex-col items-start gap-0.5 rounded-xl px-3 py-2.5 text-white focus:bg-white/8 focus:text-white"
                       >
                         <span className="font-medium">
-                          {providerOption.label}
+                          {modelOption.modelLabel}
                         </span>
                         <span className="text-xs text-white/45">
-                          {providerOption.description}
+                          {modelOption.label}
                         </span>
                       </DropdownMenuRadioItem>
                     ))}

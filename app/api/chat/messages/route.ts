@@ -11,7 +11,10 @@ import {
   ThreadTooLongError,
   streamAssistantResponse,
 } from "@/lib/ai/responses";
-import { DEFAULT_CHAT_PROVIDER, isChatProvider } from "@/lib/ai/providers";
+import {
+  getProviderForChatModel,
+  resolveChatModel,
+} from "@/lib/ai/providers";
 import { CHAT_RESPONSE_ERROR_MESSAGE } from "@/lib/chat/errors";
 import type { ChatMessage } from "@/lib/types/chat";
 import { encodeServerSentEvent } from "@/lib/utils/sse";
@@ -41,14 +44,17 @@ export async function POST(request: Request) {
 
   const body = (await request.json().catch(() => null)) as {
     content?: string;
+    model?: string;
     provider?: string;
     threadId?: string;
   } | null;
 
   const content = body?.content?.trim();
-  const provider = isChatProvider(body?.provider)
-    ? body.provider
-    : DEFAULT_CHAT_PROVIDER;
+  const model = resolveChatModel({
+    model: body?.model,
+    provider: body?.provider,
+  });
+  const provider = getProviderForChatModel(model);
   const requestedThreadId = body?.threadId?.trim() || undefined;
 
   if (!content) {
@@ -150,6 +156,7 @@ export async function POST(request: Request) {
         });
 
         const assistantResponse = await streamAssistantResponse({
+          model,
           provider,
           messages: threadMessages,
           onDelta(delta) {
