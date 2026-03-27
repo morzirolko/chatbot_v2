@@ -1,26 +1,16 @@
 import "server-only";
 
+import {
+  CHAT_SYSTEM_PROMPT,
+  isContextLimitError,
+  ThreadTooLongError,
+  type StreamAssistantResponseArgs,
+  type StreamAssistantResponseResult,
+} from "@/lib/ai/config";
 import type { ChatMessage } from "@/lib/types/chat";
 import { readServerSentEvents } from "@/lib/utils/sse";
 
 const CHAT_MODEL = "gpt-5.4";
-export const CHAT_MAX_MESSAGE_LENGTH = 4000;
-export const CHAT_SYSTEM_PROMPT =
-  "You are a helpful assistant. Answer clearly, briefly, and accurately.";
-
-export class ThreadTooLongError extends Error {
-  constructor(message = "This thread is too long to send in one request.") {
-    super(message);
-    this.name = "ThreadTooLongError";
-  }
-}
-
-function isContextLimitError(errorMessage: string, errorCode?: string) {
-  return (
-    errorCode === "context_length_exceeded" ||
-    errorMessage.toLowerCase().includes("context")
-  );
-}
 
 function getOpenAIKey() {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -39,13 +29,10 @@ function buildConversationInput(messages: ChatMessage[]) {
   }));
 }
 
-export async function streamAssistantResponse({
+export async function streamOpenAIAssistantResponse({
   messages,
   onDelta,
-}: {
-  messages: ChatMessage[];
-  onDelta: (delta: string) => void;
-}) {
+}: StreamAssistantResponseArgs): Promise<StreamAssistantResponseResult> {
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: {

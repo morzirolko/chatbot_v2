@@ -3,6 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 
+import type { ChatProvider } from "@/lib/ai/providers";
 import { ApiError } from "@/lib/api/error";
 import {
   createThreadDetailFromMessage,
@@ -40,12 +41,19 @@ export function useSendMessageMutation(
   const [streamErrorCode, setStreamErrorCode] = useState<string | null>(null);
 
   const mutation = useMutation({
-    mutationFn: async (content: string) => {
+    mutationFn: async ({
+      content,
+      provider,
+    }: {
+      content: string;
+      provider: ChatProvider;
+    }) => {
       await ensureAnonymousSession();
 
       await sendChatMessage({
         content,
         threadId: options.activeThreadId ?? undefined,
+        provider,
         onEvent: async (event) => {
           switch (event.type) {
             case "ack":

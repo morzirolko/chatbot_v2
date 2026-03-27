@@ -26,10 +26,12 @@ export async function getChatThread(threadId: string) {
 export async function sendChatMessage({
   content,
   threadId,
+  provider,
   onEvent,
 }: {
   content: SendChatMessageInput["content"];
   threadId?: SendChatMessageInput["threadId"];
+  provider?: SendChatMessageInput["provider"];
   onEvent: (event: ChatStreamEvent) => void | Promise<void>;
 }) {
   const response = await fetch("/api/chat/messages", {
@@ -37,7 +39,7 @@ export async function sendChatMessage({
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ content, threadId }),
+    body: JSON.stringify({ content, threadId, provider }),
   });
 
   if (!response.ok) {

@@ -4,6 +4,11 @@ import { ChevronDown, Loader2, Paperclip, Send } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import {
+  CHAT_PROVIDER_OPTIONS,
+  DEFAULT_CHAT_PROVIDER,
+  type ChatProvider,
+} from "@/lib/ai/providers";
 import { cn } from "@/lib/utils";
 import { ChatMessageItem } from "@/components/chat-message";
 import { useBrowserAuth } from "@/hooks/use-browser-auth";
@@ -12,6 +17,14 @@ import { useChatThreadQuery } from "@/hooks/use-chat-thread-query";
 import { useRealtimeChat } from "@/hooks/use-realtime-chat";
 import { useSendMessageMutation } from "@/hooks/use-send-message-mutation";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   InputGroup,
   InputGroupAddon,
@@ -23,6 +36,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import type { ChatMessage } from "@/lib/types/chat";
 
 const STREAMING_MESSAGE_ID = "streaming-assistant-message";
+const CHAT_PROVIDER_STORAGE_KEY = "chat-provider";
 
 interface RealtimeChatProps {
   activeThreadId: string | null;
@@ -69,11 +83,17 @@ export const RealtimeChat = ({
     onCompleted: broadcastMessage,
   });
   const [newMessage, setNewMessage] = useState("");
+  const [selectedProvider, setSelectedProvider] =
+    useState<ChatProvider>(DEFAULT_CHAT_PROVIDER);
   const isQuotaExceeded = isAnonymous && streamErrorCode === "quota_exceeded";
   const isAnonymousProviderDisabled =
     threadError instanceof Error &&
     threadError.message.includes("Supabase anonymous sign-ins are disabled");
   const chatTitle = threadData?.thread.title?.trim() || "New conversation";
+  const selectedProviderOption =
+    CHAT_PROVIDER_OPTIONS.find(
+      (providerOption) => providerOption.provider === selectedProvider,
+    ) ?? CHAT_PROVIDER_OPTIONS[0];
 
   const allMessages = useMemo(() => {
     const persistedMessages = threadData?.messages ?? [];
@@ -101,6 +121,21 @@ export const RealtimeChat = ({
     inputRef.current?.focus();
   }, [focusComposerSignal]);
 
+  useEffect(() => {
+    const storedProvider = window.localStorage.getItem(CHAT_PROVIDER_STORAGE_KEY);
+
+    if (
+      storedProvider === "openai" ||
+      storedProvider === "google"
+    ) {
+      setSelectedProvider(storedProvider);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(CHAT_PROVIDER_STORAGE_KEY, selectedProvider);
+  }, [selectedProvider]);
+
   const handleSendMessage = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
@@ -108,13 +143,23 @@ export const RealtimeChat = ({
       if (!content || isPending || isQuotaExceeded) return;
 
       clearStreamError();
-      await sendMessage(content)
+      await sendMessage({
+        content,
+        provider: selectedProvider,
+      })
         .then(() => {
           setNewMessage("");
         })
         .catch(() => undefined);
     },
-    [clearStreamError, isPending, isQuotaExceeded, newMessage, sendMessage],
+    [
+      clearStreamError,
+      isPending,
+      isQuotaExceeded,
+      newMessage,
+      selectedProvider,
+      sendMessage,
+    ],
   );
 
   if (isAuthLoading) {
@@ -276,14 +321,45 @@ export const RealtimeChat = ({
               disabled={isPending || isQuotaExceeded}
             />
             <InputGroupAddon align="inline-end" className="pr-1.5">
-              <InputGroupButton
-                variant="outline"
-                size="sm"
-                className="rounded-full border-white/10 bg-white/4 text-white/65 hover:bg-white/8 hover:text-white"
-              >
-                Model
-                <ChevronDown data-icon="inline-end" />
-              </InputGroupButton>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <InputGroupButton
+                    variant="outline"
+                    size="sm"
+                    className="rounded-full border-white/10 bg-white/4 text-white/65 hover:bg-white/8 hover:text-white"
+                  >
+                    {selectedProviderOption.modelLabel}
+                    <ChevronDown data-icon="inline-end" />
+                  </InputGroupButton>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  className="w-72 rounded-2xl border border-white/10 bg-[#121212] p-1 text-white shadow-2xl ring-white/10"
+                >
+                  <DropdownMenuLabel className="text-white/45">
+                    AI provider
+                  </DropdownMenuLabel>
+                  <DropdownMenuRadioGroup
+                    value={selectedProvider}
+                    onValueChange={(value) =>
+                      setSelectedProvider(value as ChatProvider)
+                    }
+                  >
+                    {CHAT_PROVIDER_OPTIONS.map((providerOption) => (
+                      <DropdownMenuRadioItem
+                        key={providerOption.provider}
+                        value={providerOption.provider}
+                        className="flex flex-col items-start gap-0.5 rounded-xl px-3 py-2.5 text-white focus:bg-white/8 focus:text-white"
+                      >
+                        <span className="font-medium">{providerOption.label}</span>
+                        <span className="text-xs text-white/45">
+                          {providerOption.description}
+                        </span>
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </InputGroupAddon>
           </InputGroup>
           <Button

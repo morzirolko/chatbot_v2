@@ -10,7 +10,8 @@ import {
   CHAT_MAX_MESSAGE_LENGTH,
   ThreadTooLongError,
   streamAssistantResponse,
-} from "@/lib/openai/responses";
+} from "@/lib/ai/responses";
+import { DEFAULT_CHAT_PROVIDER, isChatProvider } from "@/lib/ai/providers";
 import { CHAT_RESPONSE_ERROR_MESSAGE } from "@/lib/chat/errors";
 import type { ChatMessage } from "@/lib/types/chat";
 import { encodeServerSentEvent } from "@/lib/utils/sse";
@@ -40,10 +41,14 @@ export async function POST(request: Request) {
 
   const body = (await request.json().catch(() => null)) as {
     content?: string;
+    provider?: string;
     threadId?: string;
   } | null;
 
   const content = body?.content?.trim();
+  const provider = isChatProvider(body?.provider)
+    ? body.provider
+    : DEFAULT_CHAT_PROVIDER;
   const requestedThreadId = body?.threadId?.trim() || undefined;
 
   if (!content) {
@@ -145,6 +150,7 @@ export async function POST(request: Request) {
         });
 
         const assistantResponse = await streamAssistantResponse({
+          provider,
           messages: threadMessages,
           onDelta(delta) {
             sendEvent("delta", {
@@ -169,6 +175,15 @@ export async function POST(request: Request) {
           sendEvent("error", {
             type: "error",
             code: "thread_too_long",
+            error: error.message,
+          });
+        } else if (
+          error instanceof Error &&
+          error.message.startsWith("Missing ")
+        ) {
+          sendEvent("error", {
+            type: "error",
+            code: "provider_not_configured",
             error: error.message,
           });
         } else {
