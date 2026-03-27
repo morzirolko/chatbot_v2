@@ -24,6 +24,8 @@ import {
   type AuthenticatedGatewaySession,
 } from "@/lib/supabase/auth-gateway";
 import type { BrowserSessionResponse, BrowserSessionUser } from "@/lib/types/auth";
+import { getQuestionCountForUser } from "@/lib/chat/repository";
+import { ANONYMOUS_FREE_QUESTION_LIMIT } from "@/lib/chat/service";
 
 interface AppSessionUser {
   id: string
@@ -74,21 +76,35 @@ function mapBrowserSessionUser(record: AppSessionRecord): BrowserSessionUser {
   };
 }
 
-export function buildBrowserSessionResponse(
+export async function buildBrowserSessionResponse(
   record: AppSessionRecord | null
-): BrowserSessionResponse {
+): Promise<BrowserSessionResponse> {
   if (!record) {
     return {
       user: null,
       isAnonymous: false,
       realtimeAccessToken: null,
+      anonymousMessageQuota: null,
     };
   }
+
+  const questionCount = record.is_anonymous
+    ? await getQuestionCountForUser(record.user_id)
+    : 0;
 
   return {
     user: mapBrowserSessionUser(record),
     isAnonymous: record.is_anonymous,
     realtimeAccessToken: record.getSupabaseAccessToken(),
+    anonymousMessageQuota: record.is_anonymous
+      ? {
+          limit: ANONYMOUS_FREE_QUESTION_LIMIT,
+          remaining: Math.max(
+            ANONYMOUS_FREE_QUESTION_LIMIT - questionCount,
+            0,
+          ),
+        }
+      : null,
   };
 }
 

@@ -8,7 +8,8 @@ import {
 
 export async function GET() {
   const sessionState = await getCurrentAppSessionState();
-  const response = NextResponse.json(buildBrowserSessionResponse(sessionState.record), {
+  const session = await buildBrowserSessionResponse(sessionState.record);
+  const response = NextResponse.json(session, {
     headers: {
       "Cache-Control": "private, no-store",
     },

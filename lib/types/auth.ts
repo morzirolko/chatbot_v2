@@ -8,10 +8,16 @@ export interface BrowserSessionUser extends SessionUser {
   isAnonymous: boolean;
 }
 
+export interface AnonymousMessageQuota {
+  limit: number;
+  remaining: number;
+}
+
 export interface BrowserSessionResponse {
   user: BrowserSessionUser | null;
   isAnonymous: boolean;
   realtimeAccessToken: string | null;
+  anonymousMessageQuota: AnonymousMessageQuota | null;
 }
 
 export type AuthErrorPageCode =

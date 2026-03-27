@@ -27,7 +27,7 @@ interface UseSendMessageMutationOptions {
 
 export function useSendMessageMutation(options: UseSendMessageMutationOptions) {
   const queryClient = useQueryClient();
-  const { ensureAnonymousSession } = useBrowserAuth();
+  const { consumeAnonymousMessageQuota, ensureAnonymousSession } = useBrowserAuth();
   const [streamingText, setStreamingText] = useState("");
   const [streamingCreatedAt, setStreamingCreatedAt] = useState<string | null>(
     null,
@@ -52,6 +52,7 @@ export function useSendMessageMutation(options: UseSendMessageMutationOptions) {
         onEvent: async (event) => {
           switch (event.type) {
             case "ack":
+              consumeAnonymousMessageQuota();
               queryClient.setQueryData<ChatThreadResponse>(
                 chatThreadQueryKey(event.message.threadId),
                 (currentThread) =>

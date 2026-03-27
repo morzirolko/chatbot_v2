@@ -1,5 +1,7 @@
 "use client";
 
+import { InformationCircleIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { ChevronDown, Loader2, Send } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -15,6 +17,11 @@ import { getChatRealtimeChannelName } from "@/lib/chat/realtime";
 import type { ChatMessage } from "@/lib/types/chat";
 import { cn } from "@/lib/utils";
 import { ChatMessageItem } from "@/components/chat-message";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -57,7 +64,11 @@ export function RealtimeChat({
 }: RealtimeChatProps) {
   const { containerRef, scrollToBottom } = useChatScroll();
   const inputRef = useRef<HTMLInputElement>(null);
-  const { isAnonymous, isLoading: isAuthLoading } = useBrowserAuth();
+  const {
+    anonymousMessageQuota,
+    isAnonymous,
+    isLoading: isAuthLoading,
+  } = useBrowserAuth();
   const {
     data: threadData,
     error: threadError,
@@ -91,7 +102,10 @@ export function RealtimeChat({
   const [selectedModel, setSelectedModel] = useState<ChatModel>(
     DEFAULT_CHAT_MODEL,
   );
-  const isQuotaExceeded = isAnonymous && streamErrorCode === "quota_exceeded";
+  const isAnonymousQuotaDepleted =
+    isAnonymous && anonymousMessageQuota?.remaining === 0;
+  const isQuotaExceeded =
+    isAnonymous && (streamErrorCode === "quota_exceeded" || isAnonymousQuotaDepleted);
   const isAnonymousProviderDisabled =
     threadError instanceof Error &&
     threadError.message.includes("Supabase anonymous sign-ins are disabled");
@@ -101,6 +115,8 @@ export function RealtimeChat({
       (modelOption) => modelOption.model === selectedModel,
     ) ?? CHAT_MODEL_OPTIONS[0];
   const selectedModelMobileLabel = selectedModelOption.shortLabel;
+  const anonymousMessagesLabel =
+    anonymousMessageQuota?.remaining === 1 ? "free message" : "free messages";
 
   const allMessages = useMemo(() => {
     const persistedMessages = threadData?.messages ?? [];
@@ -237,6 +253,24 @@ export function RealtimeChat({
           </div>
         </div>
       </div>
+
+      {isAnonymous && anonymousMessageQuota ? (
+        <div className="border-b border-white/8 px-4 py-3">
+          <div className="mx-auto w-full max-w-216 px-2">
+            <Alert>
+              <HugeiconsIcon icon={InformationCircleIcon} strokeWidth={2} />
+              <AlertTitle>
+                {anonymousMessageQuota.remaining} {anonymousMessagesLabel} left
+              </AlertTitle>
+              <AlertDescription>
+                {anonymousMessageQuota.remaining > 0
+                  ? `Guest chat includes ${anonymousMessageQuota.limit} free messages. Sign in to keep your history and continue after the limit.`
+                  : "Your guest message limit is used up. Sign in or create an account to keep chatting."}
+              </AlertDescription>
+            </Alert>
+          </div>
+        </div>
+      ) : null}
 
       <div ref={containerRef} className="min-h-0 flex-1">
         <ScrollArea className="size-full overflow-hidden">

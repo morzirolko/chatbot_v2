@@ -14,14 +14,12 @@ export async function POST() {
   try {
     const session = await signInAnonymously();
     const managedSession = await createManagedAppSession(session);
-    const response = NextResponse.json(
-      buildBrowserSessionResponse(managedSession.record),
-      {
-        headers: {
-          "Cache-Control": "private, no-store",
-        },
+    const browserSession = await buildBrowserSessionResponse(managedSession.record);
+    const response = NextResponse.json(browserSession, {
+      headers: {
+        "Cache-Control": "private, no-store",
       },
-    );
+    });
 
     attachAppSessionToResponse(response, managedSession);
 

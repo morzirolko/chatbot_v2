@@ -35,7 +35,9 @@ interface AuthContextValue {
   isAnonymous: boolean;
   isLoading: boolean;
   realtimeAccessToken: string | null;
+  anonymousMessageQuota: BrowserSessionResponse["anonymousMessageQuota"];
   ensureAnonymousSession: () => Promise<BrowserSessionResponse>;
+  consumeAnonymousMessageQuota: () => void;
   prepareAnonymousUpgrade: () => Promise<string | null>;
   clearPendingUpgrade: () => void;
   refreshSession: () => Promise<void>;
@@ -48,16 +50,20 @@ function emptyAuthState() {
     user: null,
     isAnonymous: false,
     realtimeAccessToken: null,
+    anonymousMessageQuota: null,
   } satisfies Pick<
     AuthContextValue,
-    "user" | "isAnonymous" | "realtimeAccessToken"
+    "user" | "isAnonymous" | "realtimeAccessToken" | "anonymousMessageQuota"
   >;
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [authState, setAuthState] =
     useState<
-      Pick<AuthContextValue, "user" | "isAnonymous" | "realtimeAccessToken">
+      Pick<
+        AuthContextValue,
+        "user" | "isAnonymous" | "realtimeAccessToken" | "anonymousMessageQuota"
+      >
     >(emptyAuthState);
   const [isLoading, setIsLoading] = useState(true);
   const queryClient = useQueryClient();
@@ -70,6 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user: session.user,
       isAnonymous: session.isAnonymous,
       realtimeAccessToken: session.realtimeAccessToken,
+      anonymousMessageQuota: session.anonymousMessageQuota,
     });
   }, []);
 
@@ -107,6 +114,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user: authState.user,
         isAnonymous: authState.isAnonymous,
         realtimeAccessToken: authState.realtimeAccessToken,
+        anonymousMessageQuota: authState.anonymousMessageQuota,
       } satisfies BrowserSessionResponse;
     }
 
@@ -133,6 +141,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [
     applySession,
     authState.isAnonymous,
+    authState.anonymousMessageQuota,
     authState.realtimeAccessToken,
     authState.user,
   ]);
@@ -142,6 +151,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user: authState.user,
       isAnonymous: authState.isAnonymous,
       realtimeAccessToken: authState.realtimeAccessToken,
+      anonymousMessageQuota: authState.anonymousMessageQuota,
     } satisfies BrowserSessionResponse;
 
     if (!session.user) {
@@ -163,9 +173,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [
     applySession,
     authState.isAnonymous,
+    authState.anonymousMessageQuota,
     authState.realtimeAccessToken,
     authState.user,
   ]);
+
+  const consumeAnonymousMessageQuota = useCallback(() => {
+    setAuthState((currentState) => {
+      if (!currentState.isAnonymous || !currentState.anonymousMessageQuota) {
+        return currentState;
+      }
+
+      return {
+        ...currentState,
+        anonymousMessageQuota: {
+          ...currentState.anonymousMessageQuota,
+          remaining: Math.max(currentState.anonymousMessageQuota.remaining - 1, 0),
+        },
+      };
+    });
+  }, []);
 
   const clearPendingUpgrade = useCallback(() => {
     clearPendingAnonymousUpgradeToken();
@@ -232,7 +259,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isAnonymous: authState.isAnonymous,
       isLoading,
       realtimeAccessToken: authState.realtimeAccessToken,
+      anonymousMessageQuota: authState.anonymousMessageQuota,
       ensureAnonymousSession,
+      consumeAnonymousMessageQuota,
       prepareAnonymousUpgrade,
       clearPendingUpgrade,
       refreshSession,
@@ -240,6 +269,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [
     authState,
     clearPendingUpgrade,
+    consumeAnonymousMessageQuota,
     ensureAnonymousSession,
     isLoading,
     prepareAnonymousUpgrade,

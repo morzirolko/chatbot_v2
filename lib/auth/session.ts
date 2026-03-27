@@ -37,7 +37,7 @@ export async function requireAuthenticatedUser(options?: {
 
 export async function getBrowserSession() {
   const { record } = await getCurrentAppSessionState();
-  return buildBrowserSessionResponse(record) satisfies BrowserSessionResponse;
+  return (await buildBrowserSessionResponse(record)) satisfies BrowserSessionResponse;
 }
 
 export async function getSessionUser() {
