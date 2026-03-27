@@ -44,7 +44,7 @@ export function useRealtimeChat(
           ack: true,
           self: true,
         },
-        private: true,
+        private: false,
       },
     });
     channelRef.current = nextChannel;

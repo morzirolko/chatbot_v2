@@ -3,7 +3,6 @@ import "server-only";
 import {
   decryptSessionSecret,
   encryptSessionSecret,
-  isEncryptedSessionSecret,
 } from "@/lib/auth/session-crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -20,14 +19,13 @@ export interface AppSessionRecord {
   last_refreshed_at: string;
   getSupabaseAccessToken: () => string;
   getSupabaseRefreshToken: () => string;
-  needsTokenEncryption: boolean;
 }
 
 export async function createAppSession(input: {
   sessionTokenHash: string;
   userId: string;
-  email: string;
-  displayName: string;
+  email: string | null;
+  displayName: string | null;
   isAnonymous: boolean;
   supabaseAccessToken: string;
   supabaseRefreshToken: string;
@@ -165,9 +163,6 @@ function mapAppSessionRecord(row: AppSessionRow): AppSessionRecord {
     created_at: row.created_at,
     updated_at: row.updated_at,
     last_refreshed_at: row.last_refreshed_at,
-    needsTokenEncryption:
-      !isEncryptedSessionSecret(row.supabase_access_token_encrypted) ||
-      !isEncryptedSessionSecret(row.supabase_refresh_token_encrypted),
     getSupabaseAccessToken() {
       return decryptSessionSecret(row.supabase_access_token_encrypted);
     },

@@ -19,7 +19,6 @@ import type {
 } from "@/lib/attachments/types";
 import type { ChatAttachment, ChatAttachmentKind, ChatMessage } from "@/lib/types/chat";
 
-const CHAT_ATTACHMENTS_BUCKET = "chat-attachments";
 const MAX_ATTACHMENTS_PER_MESSAGE = 5;
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 const MAX_PDF_BYTES = 12 * 1024 * 1024;
@@ -127,27 +126,18 @@ function buildObjectPath(attachmentId: string, fileName: string) {
   return `chat/${year}/${month}/${attachmentId}/${sanitizeFileName(fileName)}`;
 }
 
-function truncateExtractedText(value: string) {
+function normalizeExtractedText(value: string) {
   const normalizedValue = value.replace(/\u0000/g, "").trim();
 
   if (!normalizedValue) {
-    return {
-      extractedText: "",
-      textTruncated: false,
-    };
+    return "";
   }
 
   if (normalizedValue.length <= MAX_EXTRACTED_TEXT_LENGTH) {
-    return {
-      extractedText: normalizedValue,
-      textTruncated: false,
-    };
+    return normalizedValue;
   }
 
-  return {
-    extractedText: normalizedValue.slice(0, MAX_EXTRACTED_TEXT_LENGTH).trimEnd(),
-    textTruncated: true,
-  };
+  return normalizedValue.slice(0, MAX_EXTRACTED_TEXT_LENGTH).trimEnd();
 }
 
 async function extractPdfText(fileBytes: Uint8Array) {
@@ -162,18 +152,14 @@ async function extractAttachmentText(input: {
   fileBytes: Uint8Array;
 }) {
   if (input.kind === "image") {
-    return {
-      extractedText: null,
-      textExtractionStatus: "not_applicable" as const,
-      textTruncated: false,
-    };
+    return null;
   }
 
   const rawText =
     input.kind === "pdf"
       ? await extractPdfText(input.fileBytes)
       : new TextDecoder("utf-8").decode(input.fileBytes);
-  const { extractedText, textTruncated } = truncateExtractedText(rawText);
+  const extractedText = normalizeExtractedText(rawText);
 
   if (input.kind === "pdf" && !extractedText) {
     throw new AttachmentError(
@@ -183,11 +169,7 @@ async function extractAttachmentText(input: {
     );
   }
 
-  return {
-    extractedText,
-    textExtractionStatus: "ready" as const,
-    textTruncated,
-  };
+  return extractedText;
 }
 
 function toChatAttachment(record: AttachmentRecord): ChatAttachment {
@@ -223,7 +205,6 @@ export async function uploadAttachmentForUser(userId: string, file: File) {
 
   try {
     await uploadAttachmentObject({
-      bucketName: CHAT_ATTACHMENTS_BUCKET,
       objectPath,
       data: fileBytes,
       contentType: config.mimeType,
@@ -244,21 +225,15 @@ export async function uploadAttachmentForUser(userId: string, file: File) {
       originalName: file.name,
       mimeType: config.mimeType,
       sizeBytes: file.size,
-      bucketName: CHAT_ATTACHMENTS_BUCKET,
       objectPath,
-      extractedText: extraction.extractedText,
-      textExtractionStatus: extraction.textExtractionStatus,
-      textTruncated: extraction.textTruncated,
+      extractedText: extraction,
     });
 
     return {
       attachment: toChatAttachment(record),
     } satisfies UploadAttachmentResult;
   } catch (error) {
-    await deleteAttachmentObject({
-      bucketName: CHAT_ATTACHMENTS_BUCKET,
-      objectPath,
-    }).catch(() => undefined);
+    await deleteAttachmentObject(objectPath).catch(() => undefined);
 
     throw error;
   }
@@ -283,7 +258,7 @@ export async function deleteStagedAttachmentForUser(userId: string, attachmentId
     );
   }
 
-  if (access.attachment.messageId || access.attachment.status !== "uploaded") {
+  if (access.attachment.messageId) {
     throw new AttachmentError(
       "Attached files cannot be deleted from the staging queue.",
       "attachment_already_attached",
@@ -291,10 +266,7 @@ export async function deleteStagedAttachmentForUser(userId: string, attachmentId
     );
   }
 
-  await deleteAttachmentObject({
-    bucketName: access.attachment.bucketName,
-    objectPath: access.attachment.objectPath,
-  });
+  await deleteAttachmentObject(access.attachment.objectPath);
   await deleteAttachmentRecord(access.attachment.id);
 }
 
@@ -323,7 +295,6 @@ export async function getAttachmentContentForUser(userId: string, attachmentId: 
   }
 
   const blob = await downloadAttachmentObject({
-    bucketName: access.attachment.bucketName,
     objectPath: access.attachment.objectPath,
   });
 
@@ -375,7 +346,6 @@ export async function hydrateMessagesForModel(messages: ChatMessage[]) {
           attachmentRecords.map(async (record) => {
             if (record.kind === "image") {
               const blob = await downloadAttachmentObject({
-                bucketName: record.bucketName,
                 objectPath: record.objectPath,
               });
 
@@ -389,7 +359,7 @@ export async function hydrateMessagesForModel(messages: ChatMessage[]) {
               };
             }
 
-            if (!record.extractedText) {
+            if (record.extractedText === null) {
               throw new AttachmentError(
                 "This attachment is missing extracted text.",
                 "attachment_pdf_unreadable",

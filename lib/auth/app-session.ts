@@ -23,14 +23,17 @@ import {
   refreshGatewaySession,
   type AuthenticatedGatewaySession,
 } from "@/lib/supabase/auth-gateway";
-import type { BrowserSessionResponse, BrowserSessionUser } from "@/lib/types/auth";
+import type {
+  BrowserSessionResponse,
+  BrowserSessionUser,
+} from "@/lib/types/auth";
 import { getQuestionCountForUser } from "@/lib/chat/repository";
 import { ANONYMOUS_FREE_QUESTION_LIMIT } from "@/lib/chat/service";
 
 interface AppSessionUser {
-  id: string
-  email: string
-  displayName: string
+  id: string;
+  email: string;
+  displayName: string;
   isAnonymous: boolean;
 }
 
@@ -77,7 +80,7 @@ function mapBrowserSessionUser(record: AppSessionRecord): BrowserSessionUser {
 }
 
 export async function buildBrowserSessionResponse(
-  record: AppSessionRecord | null
+  record: AppSessionRecord | null,
 ): Promise<BrowserSessionResponse> {
   if (!record) {
     return {
@@ -99,26 +102,20 @@ export async function buildBrowserSessionResponse(
     anonymousMessageQuota: record.is_anonymous
       ? {
           limit: ANONYMOUS_FREE_QUESTION_LIMIT,
-          remaining: Math.max(
-            ANONYMOUS_FREE_QUESTION_LIMIT - questionCount,
-            0,
-          ),
+          remaining: Math.max(ANONYMOUS_FREE_QUESTION_LIMIT - questionCount, 0),
         }
       : null,
   };
 }
 
-function applySessionCookie(
-  response: NextResponse,
-  sessionToken: string
-) {
+function applySessionCookie(response: NextResponse, sessionToken: string) {
   response.cookies.set(APP_SESSION_COOKIE_NAME, sessionToken, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge: APP_SESSION_COOKIE_MAX_AGE_SECONDS,
-  })
+  });
 }
 
 export function clearAppSessionCookie(response: NextResponse) {
@@ -128,47 +125,50 @@ export function clearAppSessionCookie(response: NextResponse) {
     secure: process.env.NODE_ENV === "production",
     path: "/",
     expires: new Date(0),
-  })
+  });
 }
 
 async function replaceExistingCookieSession() {
-  const cookieStore = await cookies()
-  const existingToken = cookieStore.get(APP_SESSION_COOKIE_NAME)?.value
+  const cookieStore = await cookies();
+  const existingToken = cookieStore.get(APP_SESSION_COOKIE_NAME)?.value;
 
   if (!existingToken) {
-    return
+    return;
   }
 
   await deleteAppSessionByTokenHash(hashSessionToken(existingToken)).catch(
-    () => undefined
-  )
+    () => undefined,
+  );
 }
 
 export async function createManagedAppSession(
-  session: AuthenticatedGatewaySession | null
+  session: AuthenticatedGatewaySession | null,
 ) {
   if (!session) {
-    throw new Error("Cannot create an app session without a Supabase session.")
+    throw new Error("Cannot create an app session without a Supabase session.");
   }
 
-  await replaceExistingCookieSession()
+  await replaceExistingCookieSession();
 
-  const sessionToken = createSessionToken()
+  const isAnonymous = session.user.is_anonymous === true;
+  const sessionToken = createSessionToken();
   const record = await createAppSession({
     sessionTokenHash: hashSessionToken(sessionToken),
     userId: session.user.id,
-    email: session.user.email ?? "",
-    displayName: getUserDisplayName(session.user),
+    email: session.user.email ?? null,
+    displayName: isAnonymous
+      ? getUserDisplayName(session.user) || "Guest"
+      : getUserDisplayName(session.user),
     isAnonymous: session.user.is_anonymous === true,
     supabaseAccessToken: session.accessToken,
     supabaseRefreshToken: session.refreshToken,
     supabaseAccessTokenExpiresAt: getAccessTokenExpiresAtIso(session.expiresAt),
-  })
+  });
 
   return {
     record,
     sessionToken,
-  }
+  };
 }
 
 export function attachAppSessionToResponse(
@@ -176,7 +176,7 @@ export function attachAppSessionToResponse(
   input: {
     sessionToken: string;
     record: AppSessionRecord;
-  }
+  },
 ) {
   void input.record;
   applySessionCookie(response, input.sessionToken);
@@ -197,29 +197,13 @@ async function refreshAppSessionRecord(record: AppSessionRecord) {
       supabaseAccessToken: refreshedSession.accessToken,
       supabaseRefreshToken: refreshedSession.refreshToken,
       supabaseAccessTokenExpiresAt: getAccessTokenExpiresAtIso(
-        refreshedSession.expiresAt
+        refreshedSession.expiresAt,
       ),
     });
   } catch (error) {
     await deleteAppSessionById(record.id).catch(() => undefined);
     throw error;
   }
-}
-
-async function encryptLegacySessionRecord(record: AppSessionRecord) {
-  if (!record.needsTokenEncryption) {
-    return record;
-  }
-
-  return updateAppSessionTokens({
-    id: record.id,
-    email: record.email,
-    displayName: record.display_name,
-    isAnonymous: record.is_anonymous,
-    supabaseAccessToken: record.getSupabaseAccessToken(),
-    supabaseRefreshToken: record.getSupabaseRefreshToken(),
-    supabaseAccessTokenExpiresAt: record.supabase_access_token_expires_at,
-  });
 }
 
 export async function getCurrentAppSessionState(): Promise<AppSessionState> {
@@ -230,7 +214,7 @@ export async function getCurrentAppSessionState(): Promise<AppSessionState> {
     return {
       record: null,
       shouldClearCookie: false,
-    }
+    };
   }
 
   const record = await getAppSessionByTokenHash(hashSessionToken(sessionToken));
@@ -239,30 +223,28 @@ export async function getCurrentAppSessionState(): Promise<AppSessionState> {
     return {
       record: null,
       shouldClearCookie: true,
-    }
+    };
   }
 
-  const normalizedRecord = await encryptLegacySessionRecord(record);
-
-  if (!shouldRefreshSession(normalizedRecord)) {
+  if (!shouldRefreshSession(record)) {
     return {
-      record: normalizedRecord,
+      record,
       shouldClearCookie: false,
-    }
+    };
   }
 
   try {
-    const refreshedRecord = await refreshAppSessionRecord(normalizedRecord)
+    const refreshedRecord = await refreshAppSessionRecord(record);
 
     return {
       record: refreshedRecord,
       shouldClearCookie: false,
-    }
+    };
   } catch {
     return {
       record: null,
       shouldClearCookie: true,
-    }
+    };
   }
 }
 
@@ -271,7 +253,7 @@ export async function destroyCurrentAppSession() {
   const sessionToken = cookieStore.get(APP_SESSION_COOKIE_NAME)?.value;
 
   if (!sessionToken) {
-    return
+    return;
   }
 
   await deleteAppSessionByTokenHash(hashSessionToken(sessionToken)).catch(

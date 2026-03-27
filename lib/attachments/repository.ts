@@ -1,26 +1,21 @@
 import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import type {
-  AttachmentRecord,
-  TextExtractionStatus,
-} from "@/lib/attachments/types";
+import type { AttachmentRecord } from "@/lib/attachments/types";
 import type { ChatAttachmentKind } from "@/lib/types/chat";
+
+const CHAT_ATTACHMENTS_BUCKET = "chat-attachments";
 
 interface AttachmentRow {
   id: string;
   uploaded_by_user_id: string;
   message_id: string | null;
-  status: "uploaded" | "attached";
   kind: ChatAttachmentKind;
   original_name: string;
   mime_type: string;
   size_bytes: number;
-  bucket_name: string;
   object_path: string;
   extracted_text: string | null;
-  text_extraction_status: TextExtractionStatus;
-  text_truncated: boolean;
   created_at: string;
 }
 
@@ -38,16 +33,12 @@ function mapAttachmentRow(row: AttachmentRow): AttachmentRecord {
     id: row.id,
     uploadedByUserId: row.uploaded_by_user_id,
     messageId: row.message_id,
-    status: row.status,
     kind: row.kind,
     originalName: row.original_name,
     mimeType: row.mime_type,
     sizeBytes: row.size_bytes,
-    bucketName: row.bucket_name,
     objectPath: row.object_path,
     extractedText: row.extracted_text,
-    textExtractionStatus: row.text_extraction_status,
-    textTruncated: row.text_truncated,
     createdAt: row.created_at,
   };
 }
@@ -59,11 +50,8 @@ export async function insertAttachmentRecord(input: {
   originalName: string;
   mimeType: string;
   sizeBytes: number;
-  bucketName: string;
   objectPath: string;
   extractedText: string | null;
-  textExtractionStatus: TextExtractionStatus;
-  textTruncated: boolean;
 }) {
   const supabase = createAdminClient();
   const { data, error } = await supabase
@@ -71,16 +59,12 @@ export async function insertAttachmentRecord(input: {
     .insert({
       id: input.id,
       uploaded_by_user_id: input.uploadedByUserId,
-      status: "uploaded",
       kind: input.kind,
       original_name: input.originalName,
       mime_type: input.mimeType,
       size_bytes: input.sizeBytes,
-      bucket_name: input.bucketName,
       object_path: input.objectPath,
       extracted_text: input.extractedText,
-      text_extraction_status: input.textExtractionStatus,
-      text_truncated: input.textTruncated,
     })
     .select("*")
     .single<AttachmentRow>();
@@ -163,14 +147,13 @@ export async function listAttachmentsForMessageIds(messageIds: string[]) {
 }
 
 export async function uploadAttachmentObject(input: {
-  bucketName: string;
   objectPath: string;
   data: Uint8Array;
   contentType: string;
 }) {
   const supabase = createAdminClient();
   const { error } = await supabase.storage
-    .from(input.bucketName)
+    .from(CHAT_ATTACHMENTS_BUCKET)
     .upload(input.objectPath, input.data, {
       contentType: input.contentType,
       upsert: false,
@@ -181,14 +164,11 @@ export async function uploadAttachmentObject(input: {
   }
 }
 
-export async function deleteAttachmentObject(input: {
-  bucketName: string;
-  objectPath: string;
-}) {
+export async function deleteAttachmentObject(objectPath: string) {
   const supabase = createAdminClient();
   const { error } = await supabase.storage
-    .from(input.bucketName)
-    .remove([input.objectPath]);
+    .from(CHAT_ATTACHMENTS_BUCKET)
+    .remove([objectPath]);
 
   if (error) {
     throw error;
@@ -205,12 +185,11 @@ export async function deleteAttachmentRecord(id: string) {
 }
 
 export async function downloadAttachmentObject(input: {
-  bucketName: string;
   objectPath: string;
 }) {
   const supabase = createAdminClient();
   const { data, error } = await supabase.storage
-    .from(input.bucketName)
+    .from(CHAT_ATTACHMENTS_BUCKET)
     .download(input.objectPath);
 
   if (error) {
