@@ -1,11 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { MessageSquareText } from "lucide-react";
 
 import { AppSidebar } from "@/components/app-sidebar";
 import { RealtimeChat } from "@/components/realtime-chat";
-import { ThemeSwitcher } from "@/components/theme-switcher";
 import {
   SidebarInset,
   SidebarProvider,
@@ -68,20 +66,10 @@ export function ChatWorkspace() {
       />
       <SidebarInset className="min-h-screen bg-transparent text-white">
         <div className="flex min-h-screen flex-col gap-5 px-4 py-4 sm:px-6 sm:py-5">
-          <div className="mx-auto flex w-full max-w-295 items-center justify-between rounded-2xl border border-white/8 bg-white/4 px-4 py-3 backdrop-blur-md">
-            <div className="flex items-center gap-3">
-              <SidebarTrigger className="text-white hover:bg-white/10 md:hidden" />
-              <div className="flex h-9 items-center gap-2 rounded-full border border-white/8 bg-white/3 px-3.5 text-xs uppercase tracking-[0.22em] text-white/55">
-                <MessageSquareText className="size-4" />
-                Dialog Archive
-              </div>
-            </div>
-            <ThemeSwitcher />
-          </div>
-
           <div className="mx-auto flex min-h-0 w-full max-w-295 flex-1 flex-col gap-5">
-            <div className="flex items-center justify-between gap-4 px-1 sm:px-2">
-              <h1 className="font-heading text-2xl font-medium text-white sm:text-3xl">
+            <div className="flex items-center gap-3 px-1 sm:px-2">
+              <SidebarTrigger className="text-white hover:bg-white/10 md:hidden" />
+              <h1 className="min-w-0 font-heading text-2xl font-medium text-white sm:text-3xl">
                 {selectedThread?.title ?? "New conversation"}
               </h1>
             </div>
