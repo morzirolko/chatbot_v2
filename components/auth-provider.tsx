@@ -40,7 +40,7 @@ interface AuthContextValue {
   consumeAnonymousMessageQuota: () => void;
   prepareAnonymousUpgrade: () => Promise<string | null>;
   clearPendingUpgrade: () => void;
-  refreshSession: () => Promise<void>;
+  refreshSession: () => Promise<BrowserSessionResponse>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -67,6 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     >(emptyAuthState);
   const [isLoading, setIsLoading] = useState(true);
   const queryClient = useQueryClient();
+  const refreshSessionRef = useRef<Promise<BrowserSessionResponse> | null>(null);
   const ensureSessionRef = useRef<Promise<BrowserSessionResponse> | null>(null);
   const migrationRef = useRef<Promise<void> | null>(null);
   const previousUserIdRef = useRef<string | null>(null);
@@ -81,8 +82,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const refreshSession = useCallback(async () => {
-    const session = await getAuthSession();
-    applySession(session);
+    if (refreshSessionRef.current) {
+      return refreshSessionRef.current;
+    }
+
+    const refreshPromise = getAuthSession()
+      .then((session) => {
+        applySession(session);
+        return session;
+      })
+      .finally(() => {
+        if (refreshSessionRef.current === refreshPromise) {
+          refreshSessionRef.current = null;
+        }
+      });
+
+    refreshSessionRef.current = refreshPromise;
+    return refreshPromise;
   }, [applySession]);
 
   useEffect(() => {
@@ -122,10 +138,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return ensureSessionRef.current;
     }
 
-    ensureSessionRef.current = getAuthSession()
+    ensureSessionRef.current = refreshSession()
       .then(async (session) => {
         if (session.user) {
-          applySession(session);
           return session;
         }
 
@@ -144,6 +159,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     authState.anonymousMessageQuota,
     authState.realtimeAccessToken,
     authState.user,
+    refreshSession,
   ]);
 
   const prepareAnonymousUpgrade = useCallback(async () => {
@@ -242,15 +258,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const nextUserId = authState.user?.id ?? null;
 
-    if (previousUserIdRef.current !== nextUserId) {
+    if (
+      previousUserIdRef.current !== null &&
+      previousUserIdRef.current !== nextUserId
+    ) {
       void queryClient.removeQueries({
         queryKey: chatThreadsQueryKey,
       });
       void queryClient.removeQueries({
         queryKey: chatThreadQueryKeyPrefix,
       });
-      previousUserIdRef.current = nextUserId;
     }
+
+    previousUserIdRef.current = nextUserId;
   }, [authState.user, queryClient]);
 
   const value = useMemo<AuthContextValue>(() => {

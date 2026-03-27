@@ -146,4 +146,4 @@ npm run lint
 - Sessions are managed with an app-owned cookie plus records in `app_sessions`, rather than relying on the browser Supabase client to own long-lived auth state directly.
 - Guest users can chat immediately, then upgrade to an account and migrate their chat history.
 - Conversation lists and message history are persisted in Supabase and broadcast on per-thread Realtime topics.
-- Currently you don't need to verify email (Default supabase limitation is 2 mails per day, so for display purposes i disabled it(don't do this) as i dont have time to add custom smtp or oAuth)
+- Currently you don't need to verify email (Default supabase limitation is 2 mails per day, so for display purposes i disabled it(don't do this) as i dont have time to add custom smtp)
