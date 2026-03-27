@@ -1,5 +1,8 @@
-import { cn } from "@/lib/utils";
+import { FileText, Link2 } from "lucide-react";
+
+import type { ChatAttachment } from "@/lib/api/chat-attachments";
 import type { ChatMessage } from "@/lib/types/chat";
+import { cn } from "@/lib/utils";
 import { ChatMarkdown } from "@/components/chat-markdown";
 
 const messageTimeFormatter = new Intl.DateTimeFormat("en-US", {
@@ -7,11 +10,67 @@ const messageTimeFormatter = new Intl.DateTimeFormat("en-US", {
   minute: "2-digit",
 });
 
+type ChatMessageWithAttachments = Omit<ChatMessage, "attachments"> & {
+  attachments?: ChatAttachment[];
+};
+
 interface ChatMessageItemProps {
-  message: ChatMessage;
+  message: ChatMessageWithAttachments;
   isOwnMessage: boolean;
   showHeader: boolean;
   isStreaming?: boolean;
+}
+
+function formatAttachmentSize(sizeBytes: number) {
+  if (sizeBytes < 1024) {
+    return `${sizeBytes} B`;
+  }
+
+  if (sizeBytes < 1024 * 1024) {
+    return `${(sizeBytes / 1024).toFixed(1)} KB`;
+  }
+
+  return `${(sizeBytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function AttachmentCard({ attachment }: { attachment: ChatAttachment }) {
+  const isImage = attachment.kind === "image";
+
+  return (
+    <a
+      href={attachment.contentUrl}
+      target="_blank"
+      rel="noreferrer noopener"
+      className="group flex items-center gap-3 rounded-[1.25rem] border border-white/10 bg-black/20 px-3 py-2.5 text-left transition-colors hover:border-white/18 hover:bg-black/30"
+    >
+      {isImage ? (
+        <div className="size-11 overflow-hidden rounded-xl border border-white/10 bg-white/6">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={attachment.contentUrl}
+            alt={attachment.originalName}
+            className="size-full object-cover"
+          />
+        </div>
+      ) : (
+        <div className="flex size-11 items-center justify-center rounded-xl border border-white/10 bg-white/6 text-white/80">
+          <FileText className="size-4" />
+        </div>
+      )}
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium text-white">
+          {attachment.originalName}
+        </p>
+        <p className="mt-0.5 truncate text-xs text-white/55">
+          {attachment.kind.toUpperCase()} - {formatAttachmentSize(attachment.sizeBytes)}
+        </p>
+      </div>
+      <div className="flex items-center gap-1.5 text-xs font-medium text-white/55 transition-colors group-hover:text-white/80">
+        <Link2 className="size-3.5" />
+        Open
+      </div>
+    </a>
+  );
 }
 
 export const ChatMessageItem = ({
@@ -63,6 +122,13 @@ export const ChatMessageItem = ({
             <ChatMarkdown content={message.content} />
           )}
         </div>
+        {isOwnMessage && message.attachments?.length ? (
+          <div className="flex w-full flex-col gap-2">
+            {message.attachments.map((attachment) => (
+              <AttachmentCard key={attachment.id} attachment={attachment} />
+            ))}
+          </div>
+        ) : null}
       </div>
     </div>
   );

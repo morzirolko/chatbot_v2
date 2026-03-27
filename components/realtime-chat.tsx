@@ -2,7 +2,14 @@
 
 import { InformationCircleIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { ChevronDown, Loader2, Send } from "lucide-react";
+import {
+  ChevronDown,
+  FileText,
+  Loader2,
+  Paperclip,
+  Send,
+  X,
+} from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -14,14 +21,11 @@ import {
   type ChatModel,
 } from "@/lib/ai/providers";
 import { getChatRealtimeChannelName } from "@/lib/chat/realtime";
+import type { ChatAttachment } from "@/lib/api/chat-attachments";
 import type { ChatMessage } from "@/lib/types/chat";
 import { cn } from "@/lib/utils";
 import { ChatMessageItem } from "@/components/chat-message";
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-} from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -39,7 +43,17 @@ import {
 } from "@/components/ui/input-group";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useBrowserAuth } from "@/hooks/use-browser-auth";
+import {
+  useChatAttachments,
+  type ChatAttachmentQueueItem,
+} from "@/hooks/use-chat-attachments";
 import { useChatScroll } from "@/hooks/use-chat-scroll";
 import { useChatThreadQuery } from "@/hooks/use-chat-thread-query";
 import { useRealtimeChat } from "@/hooks/use-realtime-chat";
@@ -56,6 +70,99 @@ interface RealtimeChatProps {
   onThreadCreated: (threadId: string) => void;
 }
 
+type ChatMessageWithAttachments = Omit<ChatMessage, "attachments"> & {
+  attachments?: ChatAttachment[];
+};
+
+function formatAttachmentSize(sizeBytes: number) {
+  if (sizeBytes < 1024) {
+    return `${sizeBytes} B`;
+  }
+
+  if (sizeBytes < 1024 * 1024) {
+    return `${(sizeBytes / 1024).toFixed(1)} KB`;
+  }
+
+  return `${(sizeBytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function AttachmentChip({
+  attachment,
+  onRemove,
+}: {
+  attachment: ChatAttachmentQueueItem;
+  onRemove: (clientId: string) => void;
+}) {
+  const objectUrl = useMemo(() => {
+    if (!attachment.file.type.startsWith("image/")) {
+      return null;
+    }
+
+    return URL.createObjectURL(attachment.file);
+  }, [attachment.file]);
+
+  useEffect(() => {
+    if (!objectUrl) {
+      return;
+    }
+
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [objectUrl]);
+
+  const isPending =
+    attachment.status === "uploading" || attachment.status === "removing";
+  const fileTypeLabel = attachment.file.type || "file";
+
+  return (
+    <div
+      className={cn(
+        "flex min-w-0 max-w-full items-center gap-3 rounded-[1.25rem] border px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]",
+        attachment.status === "error"
+          ? "border-red-500/30 bg-red-500/10 text-red-50"
+          : "border-white/10 bg-black/25 text-white",
+      )}
+    >
+      {objectUrl ? (
+        <div className="size-11 overflow-hidden rounded-xl border border-white/10 bg-white/6">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={objectUrl} alt={attachment.file.name} className="size-full object-cover" />
+        </div>
+      ) : (
+        <div className="flex size-11 items-center justify-center rounded-xl border border-white/10 bg-white/6 text-white/80">
+          <FileText className="size-4" />
+        </div>
+      )}
+      <div className="min-w-0">
+        <p className="truncate text-sm font-medium">{attachment.file.name}</p>
+        <p className="truncate text-xs text-white/55">
+          {attachment.status === "uploading"
+            ? "Uploading..."
+            : attachment.status === "removing"
+              ? "Removing..."
+              : attachment.status === "error"
+                ? attachment.error ?? "Upload failed"
+                : `${fileTypeLabel} - ${formatAttachmentSize(attachment.file.size)}`}
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={() => onRemove(attachment.clientId)}
+        disabled={isPending}
+        className={cn(
+          "ml-auto inline-flex size-8 items-center justify-center rounded-full transition-colors",
+          attachment.status === "error"
+            ? "text-red-100 hover:bg-red-500/20"
+            : "text-white/60 hover:bg-white/10 hover:text-white",
+          isPending && "opacity-60",
+        )}
+        aria-label={`Remove ${attachment.file.name}`}
+      >
+        {isPending ? <Loader2 className="animate-spin" /> : <X />}
+      </button>
+    </div>
+  );
+}
+
 export function RealtimeChat({
   activeThreadId,
   focusComposerSignal,
@@ -64,6 +171,7 @@ export function RealtimeChat({
 }: RealtimeChatProps) {
   const { containerRef, scrollToBottom } = useChatScroll();
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const {
     anonymousMessageQuota,
     isAnonymous,
@@ -82,6 +190,25 @@ export function RealtimeChat({
     activeThreadId,
     activeChannelName,
   );
+  const [newMessage, setNewMessage] = useState("");
+  const [selectedModel, setSelectedModel] = useState<ChatModel>(
+    DEFAULT_CHAT_MODEL,
+  );
+  const {
+    queuedAttachments,
+    readyAttachmentIds,
+    queueError,
+    hasErrors,
+    isUploading,
+    canSendWithAttachments,
+    modelAttachmentError,
+    addAttachments,
+    removeAttachment,
+    clearAttachments,
+    accept,
+  } = useChatAttachments({
+    selectedModel,
+  });
   const {
     sendMessage,
     isPending,
@@ -98,14 +225,11 @@ export function RealtimeChat({
     },
     onCompleted: broadcastMessage,
   });
-  const [newMessage, setNewMessage] = useState("");
-  const [selectedModel, setSelectedModel] = useState<ChatModel>(
-    DEFAULT_CHAT_MODEL,
-  );
   const isAnonymousQuotaDepleted =
     isAnonymous && anonymousMessageQuota?.remaining === 0;
   const isQuotaExceeded =
-    isAnonymous && (streamErrorCode === "quota_exceeded" || isAnonymousQuotaDepleted);
+    isAnonymous &&
+    (streamErrorCode === "quota_exceeded" || isAnonymousQuotaDepleted);
   const isAnonymousProviderDisabled =
     threadError instanceof Error &&
     threadError.message.includes("Supabase anonymous sign-ins are disabled");
@@ -119,18 +243,20 @@ export function RealtimeChat({
     anonymousMessageQuota?.remaining === 1 ? "free message" : "free messages";
 
   const allMessages = useMemo(() => {
-    const persistedMessages = threadData?.messages ?? [];
+    const persistedMessages =
+      (threadData?.messages as ChatMessageWithAttachments[] | undefined) ?? [];
 
     if (!threadData?.thread || !streamingText) {
       return persistedMessages;
     }
 
-    const streamingMessage: ChatMessage = {
+    const streamingMessage: ChatMessageWithAttachments = {
       id: STREAMING_MESSAGE_ID,
       threadId: threadData.thread.id,
       role: "assistant",
       content: streamingText,
       createdAt: streamingCreatedAt ?? new Date().toISOString(),
+      attachments: [],
     };
 
     return [...persistedMessages, streamingMessage];
@@ -173,7 +299,14 @@ export function RealtimeChat({
       event.preventDefault();
       const content = newMessage.trim();
 
-      if (!content || isPending || isQuotaExceeded) {
+      if (
+        !content ||
+        isPending ||
+        isQuotaExceeded ||
+        isUploading ||
+        hasErrors ||
+        !canSendWithAttachments
+      ) {
         return;
       }
 
@@ -181,20 +314,41 @@ export function RealtimeChat({
       await sendMessage({
         content,
         model: selectedModel,
+        attachmentIds: readyAttachmentIds,
       })
         .then(() => {
           setNewMessage("");
+          clearAttachments();
         })
         .catch(() => undefined);
     },
     [
+      canSendWithAttachments,
+      clearAttachments,
       clearStreamError,
+      hasErrors,
       isPending,
       isQuotaExceeded,
+      isUploading,
       newMessage,
+      readyAttachmentIds,
       selectedModel,
       sendMessage,
     ],
+  );
+
+  const handleAttachmentSelect = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const files = event.target.files ? Array.from(event.target.files) : [];
+      event.target.value = "";
+
+      if (!files.length || isPending || isQuotaExceeded) {
+        return;
+      }
+
+      await addAttachments(files);
+    },
+    [addAttachments, isPending, isQuotaExceeded],
   );
 
   if (isAuthLoading) {
@@ -342,88 +496,151 @@ export function RealtimeChat({
         onSubmit={handleSendMessage}
         className="border-t border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.015),rgba(255,140,56,0.06))] px-4 py-4"
       >
-        <div className="mx-auto flex w-full max-w-216 gap-3 px-2">
-          <InputGroup
-            data-disabled={isPending || isQuotaExceeded}
-            className="h-12 flex-1 rounded-full border-white/10 bg-black/25 text-white"
-          >
-            <InputGroupInput
-              ref={inputRef}
-              className={cn("h-full px-0 text-white placeholder:text-white/35")}
-              type="text"
-              value={newMessage}
-              onChange={(event) => {
-                setNewMessage(event.target.value);
-                if (streamError) {
-                  clearStreamError();
-                }
-              }}
-              placeholder={
-                isQuotaExceeded
-                  ? "Sign in to keep chatting"
-                  : "Type a message..."
-              }
-              disabled={isPending || isQuotaExceeded}
-            />
-            <InputGroupAddon align="inline-end" className="pr-1.5">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <InputGroupButton
-                    variant="outline"
-                    size="sm"
-                    className="max-w-32 rounded-full border-white/10 bg-white/4 text-white/65 hover:bg-white/8 hover:text-white sm:max-w-none"
-                  >
-                    <span className="truncate sm:hidden">
-                      {selectedModelMobileLabel}
-                    </span>
-                    <span className="hidden sm:inline">
-                      {selectedModelOption.modelLabel}
-                    </span>
-                    <ChevronDown data-icon="inline-end" />
-                  </InputGroupButton>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="end"
-                  className="w-72 rounded-2xl border border-white/10 bg-[#121212] p-1 text-white shadow-2xl ring-white/10"
-                >
-                  <DropdownMenuLabel className="text-white/45">
-                    AI model
-                  </DropdownMenuLabel>
-                  <DropdownMenuRadioGroup
-                    value={selectedModel}
-                    onValueChange={(value) =>
-                      setSelectedModel(value as ChatModel)
+        <TooltipProvider delayDuration={100}>
+          <div className="mx-auto flex w-full max-w-216 flex-col gap-3 px-2">
+            {queuedAttachments.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {queuedAttachments.map((attachment) => (
+                  <AttachmentChip
+                    key={attachment.clientId}
+                    attachment={attachment}
+                    onRemove={(clientId) => void removeAttachment(clientId)}
+                  />
+                ))}
+              </div>
+            ) : null}
+
+            {queueError ? (
+              <p role="alert" className="px-1 text-sm text-red-200">
+                {queueError}
+              </p>
+            ) : null}
+
+            {modelAttachmentError ? (
+              <p role="alert" className="px-1 text-sm text-amber-200">
+                {modelAttachmentError}
+              </p>
+            ) : null}
+
+            <div className="flex gap-3">
+              <InputGroup
+                data-disabled={isPending || isQuotaExceeded}
+                className="h-12 flex-1 rounded-full border-white/10 bg-black/25 text-white"
+              >
+                <InputGroupInput
+                  ref={inputRef}
+                  className={cn(
+                    "h-full px-0 text-white placeholder:text-white/35",
+                  )}
+                  type="text"
+                  value={newMessage}
+                  onChange={(event) => {
+                    setNewMessage(event.target.value);
+                    if (streamError) {
+                      clearStreamError();
                     }
-                  >
-                    {CHAT_MODEL_OPTIONS.map((modelOption) => (
-                      <DropdownMenuRadioItem
-                        key={modelOption.model}
-                        value={modelOption.model}
-                        className="flex flex-col items-start gap-0.5 rounded-xl px-3 py-2.5 text-white focus:bg-white/8 focus:text-white"
+                  }}
+                  placeholder={
+                    isQuotaExceeded
+                      ? "Sign in to keep chatting"
+                      : "Type a message..."
+                  }
+                  disabled={isPending || isQuotaExceeded}
+                />
+                <InputGroupAddon align="inline-end" className="gap-1 pr-1.5">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <InputGroupButton
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        className="rounded-full text-white/65 hover:bg-white/8 hover:text-white"
+                        onClick={() => fileInputRef.current?.click()}
+                        aria-label="Attach files"
+                        disabled={isPending || isQuotaExceeded}
                       >
-                        <span className="font-medium">
-                          {modelOption.modelLabel}
+                        <Paperclip />
+                      </InputGroupButton>
+                    </TooltipTrigger>
+                    <TooltipContent>Attach files</TooltipContent>
+                  </Tooltip>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <InputGroupButton
+                        variant="outline"
+                        size="sm"
+                        className="max-w-32 rounded-full border-white/10 bg-white/4 text-white/65 hover:bg-white/8 hover:text-white sm:max-w-none"
+                      >
+                        <span className="truncate sm:hidden">
+                          {selectedModelMobileLabel}
                         </span>
-                        <span className="text-xs text-white/45">
-                          {modelOption.label}
+                        <span className="hidden sm:inline">
+                          {selectedModelOption.modelLabel}
                         </span>
-                      </DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </InputGroupAddon>
-          </InputGroup>
-          <Button
-            size="icon-lg"
-            className="size-12 rounded-full bg-[#ff7a1a] text-black hover:bg-[#ff8b36] disabled:bg-white/10 disabled:text-white/35"
-            type="submit"
-            aria-label={isPending ? "Sending message" : "Send message"}
-            disabled={isPending || isQuotaExceeded || !newMessage.trim()}
-          >
-            {isPending ? <Loader2 className="animate-spin" /> : <Send />}
-          </Button>
-        </div>
+                        <ChevronDown data-icon="inline-end" />
+                      </InputGroupButton>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      align="end"
+                      className="w-72 rounded-2xl border border-white/10 bg-[#121212] p-1 text-white shadow-2xl ring-white/10"
+                    >
+                      <DropdownMenuLabel className="text-white/45">
+                        AI model
+                      </DropdownMenuLabel>
+                      <DropdownMenuRadioGroup
+                        value={selectedModel}
+                        onValueChange={(value) =>
+                          setSelectedModel(value as ChatModel)
+                        }
+                      >
+                        {CHAT_MODEL_OPTIONS.map((modelOption) => (
+                          <DropdownMenuRadioItem
+                            key={modelOption.model}
+                            value={modelOption.model}
+                            className="flex flex-col items-start gap-0.5 rounded-xl px-3 py-2.5 text-white focus:bg-white/8 focus:text-white"
+                          >
+                            <span className="font-medium">
+                              {modelOption.modelLabel}
+                            </span>
+                            <span className="text-xs text-white/45">
+                              {modelOption.label}
+                            </span>
+                          </DropdownMenuRadioItem>
+                        ))}
+                      </DropdownMenuRadioGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </InputGroupAddon>
+              </InputGroup>
+              <Button
+                size="icon-lg"
+                className="size-12 rounded-full bg-[#ff7a1a] text-black hover:bg-[#ff8b36] disabled:bg-white/10 disabled:text-white/35"
+                type="submit"
+                aria-label={isPending ? "Sending message" : "Send message"}
+                disabled={
+                  isPending ||
+                  isQuotaExceeded ||
+                  isUploading ||
+                  hasErrors ||
+                  !canSendWithAttachments ||
+                  !newMessage.trim()
+                }
+              >
+                {isPending ? <Loader2 className="animate-spin" /> : <Send />}
+              </Button>
+            </div>
+          </div>
+        </TooltipProvider>
+        <input
+          ref={fileInputRef}
+          type="file"
+          className="sr-only"
+          multiple
+          accept={accept}
+          onChange={(event) => {
+            void handleAttachmentSelect(event);
+          }}
+        />
       </form>
     </div>
   );

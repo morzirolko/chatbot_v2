@@ -1,10 +1,12 @@
 import {
   AnonymousQuotaExceededError,
+  hydrateChatMessagesForModel,
   ChatThreadNotFoundError,
   createUserMessageForUser,
   createAssistantMessageForThread,
 } from "@/lib/chat/service";
 import { AuthSessionError, requireAuthenticatedUser } from "@/lib/auth/session";
+import { AttachmentError } from "@/lib/attachments/service";
 import { isAnonymousUser } from "@/lib/auth/user";
 import {
   CHAT_MAX_MESSAGE_LENGTH,
@@ -20,6 +22,8 @@ import type { ChatMessage } from "@/lib/types/chat";
 import { encodeServerSentEvent } from "@/lib/utils/sse";
 
 export const maxDuration = 30;
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export async function POST(request: Request) {
   let user: Awaited<ReturnType<typeof requireAuthenticatedUser>>;
@@ -47,6 +51,7 @@ export async function POST(request: Request) {
     model?: string;
     provider?: string;
     threadId?: string;
+    attachmentIds?: string[];
   } | null;
 
   const content = body?.content?.trim();
@@ -56,6 +61,25 @@ export async function POST(request: Request) {
   });
   const provider = getProviderForChatModel(model);
   const requestedThreadId = body?.threadId?.trim() || undefined;
+  const attachmentIds =
+    body?.attachmentIds?.filter((attachmentId) => UUID_PATTERN.test(attachmentId)) ??
+    [];
+
+  if (
+    body?.attachmentIds &&
+    (!Array.isArray(body.attachmentIds) ||
+      body.attachmentIds.length !== attachmentIds.length)
+  ) {
+    return Response.json(
+      { error: "Attachment selection is invalid.", code: "invalid_attachment_selection" },
+      {
+        status: 400,
+        headers: {
+          "Cache-Control": "private, no-store",
+        },
+      },
+    );
+  }
 
   if (!content) {
     return Response.json(
@@ -91,6 +115,7 @@ export async function POST(request: Request) {
     const result = await createUserMessageForUser(user.id, content, {
       enforceAnonymousQuota: isAnonymousUser(user),
       threadId: requestedThreadId,
+      attachmentIds,
     });
 
     threadId = result.thread.id;
@@ -119,6 +144,21 @@ export async function POST(request: Request) {
         },
         {
           status: 404,
+          headers: {
+            "Cache-Control": "private, no-store",
+          },
+        },
+      );
+    }
+
+    if (error instanceof AttachmentError) {
+      return Response.json(
+        {
+          error: error.message,
+          code: error.code,
+        },
+        {
+          status: error.status,
           headers: {
             "Cache-Control": "private, no-store",
           },
@@ -158,7 +198,7 @@ export async function POST(request: Request) {
         const assistantResponse = await streamAssistantResponse({
           model,
           provider,
-          messages: threadMessages,
+          messages: await hydrateChatMessagesForModel(threadMessages),
           onDelta(delta) {
             sendEvent("delta", {
               type: "delta",

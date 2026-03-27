@@ -1,6 +1,7 @@
 import "server-only";
 
 import { buildThreadPreview } from "@/lib/chat/thread";
+import { createUserMessageWithAttachments } from "@/lib/attachments/repository";
 import type {
   ChatMessage,
   ChatRole,
@@ -52,6 +53,7 @@ function mapChatMessage(row: ChatMessageRow): ChatMessage {
     role: row.role,
     content: row.content,
     createdAt: row.created_at,
+    attachments: [],
   };
 }
 
@@ -164,6 +166,16 @@ export async function createChatMessage({
   }
 
   return mapChatMessage(data as ChatMessageRow);
+}
+
+export async function createChatMessageWithAttachmentsForUser(input: {
+  userId: string;
+  threadId: string;
+  content: string;
+  attachmentIds: string[];
+  createdAt?: string;
+}) {
+  return createUserMessageWithAttachments(input);
 }
 
 export async function listMessagesForThreadOwnedByUser(

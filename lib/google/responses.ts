@@ -4,11 +4,13 @@ import {
   CHAT_SYSTEM_PROMPT,
   isContextLimitError,
   ThreadTooLongError,
-  type StreamAssistantResponseArgs,
   type StreamAssistantResponseResult,
 } from "@/lib/ai/config";
+import {
+  buildGoogleMessageParts,
+  type AttachmentAwareStreamAssistantResponseArgs,
+} from "@/lib/ai/attachment-context";
 import type { ChatModel } from "@/lib/ai/providers";
-import type { ChatMessage } from "@/lib/types/chat";
 import { readServerSentEvents } from "@/lib/utils/sse";
 
 const DEFAULT_GOOGLE_CHAT_MODEL = "gemini-2.5-flash";
@@ -47,14 +49,12 @@ function getGoogleAIKey() {
   return apiKey;
 }
 
-function buildConversationInput(messages: ChatMessage[]) {
+function buildConversationInput(
+  messages: AttachmentAwareStreamAssistantResponseArgs["messages"],
+) {
   return messages.map((message) => ({
     role: message.role === "assistant" ? "model" : "user",
-    parts: [
-      {
-        text: message.content,
-      },
-    ],
+    parts: buildGoogleMessageParts(message),
   }));
 }
 
@@ -84,7 +84,7 @@ function getGoogleErrorMessage(payload: GeminiStreamChunk) {
 
 function buildGoogleRequestBody(
   googleModel: ChatModel,
-  messages: ChatMessage[],
+  messages: AttachmentAwareStreamAssistantResponseArgs["messages"],
 ) {
   const isGemma = googleModel.startsWith("gemma");
   const contents = buildConversationInput(messages);
@@ -118,7 +118,7 @@ export async function streamGoogleAssistantResponse({
   messages,
   model,
   onDelta,
-}: StreamAssistantResponseArgs & {
+}: AttachmentAwareStreamAssistantResponseArgs & {
   model?: ChatModel;
 }): Promise<StreamAssistantResponseResult> {
   const googleModel = GOOGLE_CHAT_MODELS.has(model ?? DEFAULT_GOOGLE_CHAT_MODEL)

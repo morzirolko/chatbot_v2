@@ -39,9 +39,11 @@ export function useSendMessageMutation(options: UseSendMessageMutationOptions) {
     mutationFn: async ({
       content,
       model,
+      attachmentIds,
     }: {
       content: string;
       model: ChatModel;
+      attachmentIds?: string[];
     }) => {
       await ensureAnonymousSession();
 
@@ -49,6 +51,7 @@ export function useSendMessageMutation(options: UseSendMessageMutationOptions) {
         content,
         threadId: options.activeThreadId ?? undefined,
         model,
+        attachmentIds,
         onEvent: async (event) => {
           switch (event.type) {
             case "ack":

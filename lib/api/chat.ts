@@ -2,7 +2,6 @@ import type {
   ChatStreamEvent,
   ChatThreadResponse,
   ChatThreadSummary,
-  SendChatMessageInput,
 } from "@/lib/types/chat";
 import { ApiError, readJsonResponse } from "@/lib/api/error";
 import { readServerSentEvents } from "@/lib/utils/sse";
@@ -28,12 +27,14 @@ export async function sendChatMessage({
   threadId,
   provider,
   model,
+  attachmentIds,
   onEvent,
 }: {
-  content: SendChatMessageInput["content"];
-  threadId?: SendChatMessageInput["threadId"];
-  provider?: SendChatMessageInput["provider"];
-  model?: SendChatMessageInput["model"];
+  content: string;
+  threadId?: string;
+  provider?: string;
+  model?: string;
+  attachmentIds?: string[];
   onEvent: (event: ChatStreamEvent) => void | Promise<void>;
 }) {
   const response = await fetch("/api/chat/messages", {
@@ -41,7 +42,13 @@ export async function sendChatMessage({
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ content, threadId, provider, model }),
+    body: JSON.stringify({
+      content,
+      threadId,
+      provider,
+      model,
+      attachmentIds,
+    }),
   });
 
   if (!response.ok) {

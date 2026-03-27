@@ -1,9 +1,7 @@
 import "server-only";
 
-import type {
-  StreamAssistantResponseArgs,
-  StreamAssistantResponseResult,
-} from "@/lib/ai/config";
+import type { StreamAssistantResponseResult } from "@/lib/ai/config";
+import type { AttachmentAwareStreamAssistantResponseArgs } from "@/lib/ai/attachment-context";
 import {
   DEFAULT_CHAT_MODEL,
   getProviderForChatModel,
@@ -19,11 +17,17 @@ export {
   ThreadTooLongError,
 } from "@/lib/ai/config";
 
+export type {
+  AttachmentAwareStreamAssistantResponseArgs,
+  HydratedChatAttachment,
+  HydratedChatMessage,
+} from "@/lib/ai/attachment-context";
+
 export async function streamAssistantResponse({
   model = DEFAULT_CHAT_MODEL,
   provider,
   ...args
-}: StreamAssistantResponseArgs & {
+}: AttachmentAwareStreamAssistantResponseArgs & {
   model?: ChatModel;
   provider?: ChatProvider;
 }): Promise<StreamAssistantResponseResult> {

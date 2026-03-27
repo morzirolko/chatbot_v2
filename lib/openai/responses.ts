@@ -4,10 +4,12 @@ import {
   CHAT_SYSTEM_PROMPT,
   isContextLimitError,
   ThreadTooLongError,
-  type StreamAssistantResponseArgs,
   type StreamAssistantResponseResult,
 } from "@/lib/ai/config";
-import type { ChatMessage } from "@/lib/types/chat";
+import {
+  buildOpenAIMessageContent,
+  type AttachmentAwareStreamAssistantResponseArgs,
+} from "@/lib/ai/attachment-context";
 import { readServerSentEvents } from "@/lib/utils/sse";
 
 const CHAT_MODEL = "gpt-5.4";
@@ -22,17 +24,19 @@ function getOpenAIKey() {
   return apiKey;
 }
 
-function buildConversationInput(messages: ChatMessage[]) {
+function buildConversationInput(
+  messages: AttachmentAwareStreamAssistantResponseArgs["messages"],
+) {
   return messages.map((message) => ({
     role: message.role,
-    content: message.content,
+    content: buildOpenAIMessageContent(message),
   }));
 }
 
 export async function streamOpenAIAssistantResponse({
   messages,
   onDelta,
-}: StreamAssistantResponseArgs): Promise<StreamAssistantResponseResult> {
+}: AttachmentAwareStreamAssistantResponseArgs): Promise<StreamAssistantResponseResult> {
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: {

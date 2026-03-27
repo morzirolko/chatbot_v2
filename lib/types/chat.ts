@@ -1,6 +1,16 @@
 import type { ChatModel, ChatProvider } from "@/lib/ai/providers";
 
 export type ChatRole = "user" | "assistant";
+export type ChatAttachmentKind = "image" | "pdf" | "text";
+
+export interface ChatAttachment {
+  id: string;
+  kind: ChatAttachmentKind;
+  originalName: string;
+  mimeType: string;
+  sizeBytes: number;
+  contentUrl: string;
+}
 
 export interface ChatMessage {
   id: string;
@@ -8,6 +18,7 @@ export interface ChatMessage {
   role: ChatRole;
   content: string;
   createdAt: string;
+  attachments: ChatAttachment[];
 }
 
 export interface ChatThread {
@@ -35,6 +46,7 @@ export interface SendChatMessageInput {
   threadId?: string;
   provider?: ChatProvider;
   model?: ChatModel;
+  attachmentIds?: string[];
 }
 
 export interface ChatMessageAckEvent {
