@@ -29,7 +29,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const redirectTo = new URL("/auth/confirm?next=/protected", request.url);
+  const redirectTo = new URL("/auth/confirm?next=/", request.url);
   try {
     const result = await signUpWithPassword({
       email,

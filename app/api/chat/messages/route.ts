@@ -163,7 +163,6 @@ export async function POST(request: Request) {
         const assistantMessage = await createAssistantMessageForThread(
           threadId,
           assistantResponse.content,
-          assistantResponse.responseId,
         );
 
         sendEvent("done", {

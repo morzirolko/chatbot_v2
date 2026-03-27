@@ -1,6 +1,5 @@
 import "server-only";
 
-import { getChatRealtimeChannelName } from "@/lib/chat/realtime";
 import { buildThreadPreview } from "@/lib/chat/thread";
 import type {
   ChatMessage,
@@ -23,16 +22,18 @@ interface ChatMessageRow {
   role: ChatRole;
   content: string;
   created_at: string;
-  openai_response_id: string | null;
 }
 
 interface UsageCountRow {
   question_count: number;
 }
 
-interface ThreadPreviewRow {
-  thread_id: string;
-  content: string;
+interface ChatThreadSummaryRow {
+  id: string;
+  title: string | null;
+  latest_message_content: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 function mapChatThread(row: ChatThreadRow): ChatThread {
@@ -41,7 +42,6 @@ function mapChatThread(row: ChatThreadRow): ChatThread {
     title: row.title,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
-    realtimeChannelName: getChatRealtimeChannelName(row.id),
   };
 }
 
@@ -52,7 +52,6 @@ function mapChatMessage(row: ChatMessageRow): ChatMessage {
     role: row.role,
     content: row.content,
     createdAt: row.created_at,
-    openaiResponseId: row.openai_response_id,
   };
 }
 
@@ -78,47 +77,19 @@ export async function getThreadByIdForUser(userId: string, threadId: string) {
 
 export async function listThreadsForUser(userId: string) {
   const supabase = createAdminClient();
-  const { data, error } = await supabase
-    .from("chat_threads")
-    .select("id, title, created_at, updated_at")
-    .eq("user_id", userId)
-    .order("updated_at", { ascending: false })
-    .returns<ChatThreadRow[]>();
+  const { data, error } = await supabase.rpc("list_chat_thread_summaries", {
+    target_user_id: userId,
+  });
 
   if (error) {
     throw error;
   }
 
-  const threadRows = (data ?? []) as ChatThreadRow[];
-  if (threadRows.length === 0) {
-    return [];
-  }
-
-  const threadIds = threadRows.map((thread) => thread.id);
-  const { data: previewRows, error: previewError } = await supabase
-    .from("chat_messages")
-    .select("thread_id, content")
-    .in("thread_id", threadIds)
-    .order("created_at", { ascending: false })
-    .returns<ThreadPreviewRow[]>();
-
-  if (previewError) {
-    throw previewError;
-  }
-
-  const previewByThreadId = new Map<string, string>();
-
-  for (const row of (previewRows ?? []) as ThreadPreviewRow[]) {
-    if (!previewByThreadId.has(row.thread_id)) {
-      previewByThreadId.set(row.thread_id, buildThreadPreview(row.content));
-    }
-  }
-
-  return threadRows.map(
+  return ((data ?? []) as ChatThreadSummaryRow[]).map(
     (thread): ChatThreadSummary => ({
       id: thread.id,
       title: thread.title,
-      preview: previewByThreadId.get(thread.id) ?? "No messages yet.",
+      preview: buildThreadPreview(thread.latest_message_content ?? ""),
       createdAt: thread.created_at,
       updatedAt: thread.updated_at,
     }),
@@ -153,7 +124,7 @@ export async function listMessagesForThread(threadId: string) {
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("chat_messages")
-    .select("id, thread_id, role, content, created_at, openai_response_id")
+    .select("id, thread_id, role, content, created_at")
     .eq("thread_id", threadId)
     .order("created_at", { ascending: true })
     .returns<ChatMessageRow[]>();
@@ -169,13 +140,11 @@ export async function createChatMessage({
   threadId,
   role,
   content,
-  openaiResponseId,
   createdAt,
 }: {
   threadId: string;
   role: ChatRole;
   content: string;
-  openaiResponseId?: string | null;
   createdAt?: string;
 }) {
   const supabase = createAdminClient();
@@ -185,10 +154,9 @@ export async function createChatMessage({
       thread_id: threadId,
       role,
       content,
-      openai_response_id: openaiResponseId ?? null,
       created_at: createdAt,
     })
-    .select("id, thread_id, role, content, created_at, openai_response_id")
+    .select("id, thread_id, role, content, created_at")
     .single();
 
   if (error) {

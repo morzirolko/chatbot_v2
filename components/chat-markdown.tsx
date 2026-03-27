@@ -57,8 +57,8 @@ export function ChatMarkdown({ content }: ChatMarkdownProps) {
               {children}
             </blockquote>
           ),
-          hr: () => <hr className="my-4 border-white/10" />,
-          a: ({ children, href }) => (
+          hr: () => <hr aria-hidden="true" className="my-4 border-white/10" />,
+          a: ({ children, href }) =>
             href ? (
               <a
                 href={href}
@@ -70,8 +70,7 @@ export function ChatMarkdown({ content }: ChatMarkdownProps) {
               </a>
             ) : (
               <span className="font-medium text-inherit">{children}</span>
-            )
-          ),
+            ),
           pre: ({ children }) => (
             <pre className="mb-4 overflow-x-auto rounded-[1.25rem] border border-white/10 bg-black/45 px-4 py-3 text-[13px] leading-6 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
               {children}

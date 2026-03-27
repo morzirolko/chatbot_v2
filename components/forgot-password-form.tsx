@@ -1,8 +1,9 @@
 "use client";
 
 import { useMutation } from "@tanstack/react-query";
-import { cn } from "@/lib/utils";
-import { forgotPassword } from "@/lib/api/auth";
+import Link from "next/link";
+import { useState } from "react";
+
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -13,8 +14,8 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import Link from "next/link";
-import { useState } from "react";
+import { forgotPassword } from "@/lib/api/auth";
+import { cn } from "@/lib/utils";
 
 export function ForgotPasswordForm({
   className,
@@ -32,15 +33,16 @@ export function ForgotPasswordForm({
       setError(
         mutationError instanceof Error
           ? mutationError.message
-          : "An error occurred",
+          : "An error occurred.",
       );
     },
   });
 
-  const handleForgotPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleForgotPassword = async (event: React.FormEvent) => {
+    event.preventDefault();
     setError(null);
     setSuccess(false);
+
     await forgotPasswordMutation.mutateAsync(email).catch(() => undefined);
   };
 
@@ -49,7 +51,7 @@ export function ForgotPasswordForm({
       {success ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-2xl">Check Your Email</CardTitle>
+            <CardTitle className="text-2xl">Check your email</CardTitle>
             <CardDescription>Password reset instructions sent</CardDescription>
           </CardHeader>
           <CardContent>
@@ -62,10 +64,10 @@ export function ForgotPasswordForm({
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle className="text-2xl">Reset Your Password</CardTitle>
+            <CardTitle className="text-2xl">Reset your password</CardTitle>
             <CardDescription>
               Type in your email and we&apos;ll send you a link to reset your
-              password
+              password.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -75,21 +77,28 @@ export function ForgotPasswordForm({
                   <Label htmlFor="email">Email</Label>
                   <Input
                     id="email"
+                    name="email"
                     type="email"
                     placeholder="m@example.com"
+                    autoComplete="email"
+                    spellCheck={false}
                     required
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(event) => setEmail(event.target.value)}
                   />
                 </div>
-                {error && <p className="text-sm text-red-500">{error}</p>}
+                {error ? (
+                  <p role="alert" className="text-sm text-red-500">
+                    {error}
+                  </p>
+                ) : null}
                 <Button
                   type="submit"
                   className="w-full"
                   disabled={forgotPasswordMutation.isPending}
                 >
                   {forgotPasswordMutation.isPending
-                    ? "Sending..."
+                    ? "Sending…"
                     : "Send reset email"}
                 </Button>
               </div>
@@ -99,7 +108,7 @@ export function ForgotPasswordForm({
                   href="/auth/login"
                   className="underline underline-offset-4"
                 >
-                  Login
+                  Log in
                 </Link>
               </div>
             </form>

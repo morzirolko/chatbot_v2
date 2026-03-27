@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, Loader2, Paperclip, Send } from "lucide-react";
+import { ChevronDown, Loader2, Send } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -9,13 +9,10 @@ import {
   DEFAULT_CHAT_PROVIDER,
   type ChatProvider,
 } from "@/lib/ai/providers";
+import { getChatRealtimeChannelName } from "@/lib/chat/realtime";
+import type { ChatMessage } from "@/lib/types/chat";
 import { cn } from "@/lib/utils";
 import { ChatMessageItem } from "@/components/chat-message";
-import { useBrowserAuth } from "@/hooks/use-browser-auth";
-import { useChatScroll } from "@/hooks/use-chat-scroll";
-import { useChatThreadQuery } from "@/hooks/use-chat-thread-query";
-import { useRealtimeChat } from "@/hooks/use-realtime-chat";
-import { useSendMessageMutation } from "@/hooks/use-send-message-mutation";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -33,7 +30,11 @@ import {
 } from "@/components/ui/input-group";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import type { ChatMessage } from "@/lib/types/chat";
+import { useBrowserAuth } from "@/hooks/use-browser-auth";
+import { useChatScroll } from "@/hooks/use-chat-scroll";
+import { useChatThreadQuery } from "@/hooks/use-chat-thread-query";
+import { useRealtimeChat } from "@/hooks/use-realtime-chat";
+import { useSendMessageMutation } from "@/hooks/use-send-message-mutation";
 
 const STREAMING_MESSAGE_ID = "streaming-assistant-message";
 const CHAT_PROVIDER_STORAGE_KEY = "chat-provider";
@@ -45,26 +46,27 @@ interface RealtimeChatProps {
   onThreadCreated: (threadId: string) => void;
 }
 
-export const RealtimeChat = ({
+export function RealtimeChat({
   activeThreadId,
   focusComposerSignal,
   isArchiveLoading,
   onThreadCreated,
-}: RealtimeChatProps) => {
+}: RealtimeChatProps) {
   const { containerRef, scrollToBottom } = useChatScroll();
   const inputRef = useRef<HTMLInputElement>(null);
-  const {
-    isAnonymous,
-    isLoading: isAuthLoading,
-  } = useBrowserAuth();
+  const { isAnonymous, isLoading: isAuthLoading } = useBrowserAuth();
   const {
     data: threadData,
     error: threadError,
     isLoading: isThreadLoading,
   } = useChatThreadQuery(activeThreadId);
+  const activeChannelName =
+    activeThreadId && threadData?.thread
+      ? getChatRealtimeChannelName(activeThreadId)
+      : undefined;
   const { broadcastMessage } = useRealtimeChat(
     activeThreadId,
-    threadData?.thread.realtimeChannelName,
+    activeChannelName,
   );
   const {
     sendMessage,
@@ -83,8 +85,9 @@ export const RealtimeChat = ({
     onCompleted: broadcastMessage,
   });
   const [newMessage, setNewMessage] = useState("");
-  const [selectedProvider, setSelectedProvider] =
-    useState<ChatProvider>(DEFAULT_CHAT_PROVIDER);
+  const [selectedProvider, setSelectedProvider] = useState<ChatProvider>(
+    DEFAULT_CHAT_PROVIDER,
+  );
   const isQuotaExceeded = isAnonymous && streamErrorCode === "quota_exceeded";
   const isAnonymousProviderDisabled =
     threadError instanceof Error &&
@@ -95,7 +98,9 @@ export const RealtimeChat = ({
       (providerOption) => providerOption.provider === selectedProvider,
     ) ?? CHAT_PROVIDER_OPTIONS[0];
   const selectedProviderMobileLabel =
-    selectedProvider === "google" ? "Gemini" : selectedProviderOption.modelLabel;
+    selectedProvider === "google"
+      ? "Gemini"
+      : selectedProviderOption.modelLabel;
 
   const allMessages = useMemo(() => {
     const persistedMessages = threadData?.messages ?? [];
@@ -124,12 +129,11 @@ export const RealtimeChat = ({
   }, [focusComposerSignal]);
 
   useEffect(() => {
-    const storedProvider = window.localStorage.getItem(CHAT_PROVIDER_STORAGE_KEY);
+    const storedProvider = window.localStorage.getItem(
+      CHAT_PROVIDER_STORAGE_KEY,
+    );
 
-    if (
-      storedProvider === "openai" ||
-      storedProvider === "google"
-    ) {
+    if (storedProvider === "openai" || storedProvider === "google") {
       setSelectedProvider(storedProvider);
     }
   }, []);
@@ -139,10 +143,13 @@ export const RealtimeChat = ({
   }, [selectedProvider]);
 
   const handleSendMessage = useCallback(
-    async (e: React.FormEvent) => {
-      e.preventDefault();
+    async (event: React.FormEvent) => {
+      event.preventDefault();
       const content = newMessage.trim();
-      if (!content || isPending || isQuotaExceeded) return;
+
+      if (!content || isPending || isQuotaExceeded) {
+        return;
+      }
 
       clearStreamError();
       await sendMessage({
@@ -180,34 +187,32 @@ export const RealtimeChat = ({
     );
   }
 
-  if (activeThreadId && !threadData) {
-    if (threadError instanceof Error) {
-      if (isAnonymousProviderDisabled) {
-        return (
-          <div className="w-full rounded-xl border border-white/10 bg-[linear-gradient(180deg,rgba(255,140,56,0.08),rgba(255,255,255,0.04))] p-4 text-sm backdrop-blur-xl">
-            <p className="text-white">Guest chat is currently unavailable.</p>
-            <p className="mt-2 text-white/55">
-              Sign in or create an account to keep using the chat while
-              anonymous sign-ins are disabled.
-            </p>
-            <div className="mt-4 flex gap-2">
-              <Button asChild size="sm">
-                <Link href="/auth/login">Sign in</Link>
-              </Button>
-              <Button asChild size="sm" variant="outline">
-                <Link href="/auth/sign-up">Create account</Link>
-              </Button>
-            </div>
-          </div>
-        );
-      }
-
+  if (activeThreadId && !threadData && threadError instanceof Error) {
+    if (isAnonymousProviderDisabled) {
       return (
-        <div className="w-full rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-100 backdrop-blur-xl">
-          {threadError.message}
+        <div className="w-full rounded-xl border border-white/10 bg-[linear-gradient(180deg,rgba(255,140,56,0.08),rgba(255,255,255,0.04))] p-4 text-sm backdrop-blur-xl">
+          <p className="text-white">Guest chat is currently unavailable.</p>
+          <p className="mt-2 text-white/55">
+            Sign in or create an account to keep using the chat while anonymous
+            sign-ins are disabled.
+          </p>
+          <div className="mt-4 flex gap-2">
+            <Button asChild size="sm">
+              <Link href="/auth/login">Sign in</Link>
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <Link href="/auth/sign-up">Create account</Link>
+            </Button>
+          </div>
         </div>
       );
     }
+
+    return (
+      <div className="w-full rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-100 backdrop-blur-xl">
+        {threadError.message}
+      </div>
+    );
   }
 
   return (
@@ -222,6 +227,7 @@ export const RealtimeChat = ({
           </div>
         </div>
       </div>
+
       <div ref={containerRef} className="min-h-0 flex-1">
         <ScrollArea className="size-full overflow-hidden">
           {!activeThreadId ? (
@@ -231,6 +237,9 @@ export const RealtimeChat = ({
                   <h2 className="font-heading text-xl font-medium text-white">
                     Start a clean thread
                   </h2>
+                  <p className="mt-2 text-sm leading-6 text-white/55">
+                    Send a message to create a new conversation in your sidebar.
+                  </p>
                 </div>
               </div>
             </div>
@@ -241,9 +250,10 @@ export const RealtimeChat = ({
           ) : (
             <div className="mx-auto flex w-full max-w-216 flex-col gap-5 px-4 py-4 sm:px-6">
               {allMessages.map((message, index) => {
-                const prevMessage = index > 0 ? allMessages[index - 1] : null;
+                const previousMessage =
+                  index > 0 ? allMessages[index - 1] : null;
                 const showHeader =
-                  !prevMessage || prevMessage.role !== message.role;
+                  !previousMessage || previousMessage.role !== message.role;
 
                 return (
                   <div
@@ -267,7 +277,9 @@ export const RealtimeChat = ({
       {streamError ? (
         <div className="border-t border-white/8 px-4 py-4 text-sm">
           <div className="mx-auto w-full max-w-216 px-2">
-            <p className="text-red-200">{streamError}</p>
+            <p role="alert" className="text-red-200">
+              {streamError}
+            </p>
             {isQuotaExceeded ? (
               <div className="mt-3 flex gap-2">
                 <Button asChild size="sm">
@@ -291,26 +303,13 @@ export const RealtimeChat = ({
             data-disabled={isPending || isQuotaExceeded}
             className="h-12 flex-1 rounded-full border-white/10 bg-black/25 text-white"
           >
-            <InputGroupAddon
-              align="inline-start"
-              className="pl-2 text-white/55"
-            >
-              <InputGroupButton
-                aria-label="Add files"
-                size="icon-sm"
-                variant="ghost"
-                className="text-white/55 hover:bg-white/8 hover:text-white"
-              >
-                <Paperclip />
-              </InputGroupButton>
-            </InputGroupAddon>
             <InputGroupInput
               ref={inputRef}
               className={cn("h-full px-0 text-white placeholder:text-white/35")}
               type="text"
               value={newMessage}
-              onChange={(e) => {
-                setNewMessage(e.target.value);
+              onChange={(event) => {
+                setNewMessage(event.target.value);
                 if (streamError) {
                   clearStreamError();
                 }
@@ -358,7 +357,9 @@ export const RealtimeChat = ({
                         value={providerOption.provider}
                         className="flex flex-col items-start gap-0.5 rounded-xl px-3 py-2.5 text-white focus:bg-white/8 focus:text-white"
                       >
-                        <span className="font-medium">{providerOption.label}</span>
+                        <span className="font-medium">
+                          {providerOption.label}
+                        </span>
                         <span className="text-xs text-white/45">
                           {providerOption.description}
                         </span>
@@ -373,6 +374,7 @@ export const RealtimeChat = ({
             size="icon-lg"
             className="size-12 rounded-full bg-[#ff7a1a] text-black hover:bg-[#ff8b36] disabled:bg-white/10 disabled:text-white/35"
             type="submit"
+            aria-label={isPending ? "Sending message" : "Send message"}
             disabled={isPending || isQuotaExceeded || !newMessage.trim()}
           >
             {isPending ? <Loader2 className="animate-spin" /> : <Send />}
@@ -381,4 +383,4 @@ export const RealtimeChat = ({
       </form>
     </div>
   );
-};
+}

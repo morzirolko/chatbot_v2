@@ -1,12 +1,19 @@
 import type { Metadata } from "next";
 import { Geist, Figtree } from "next/font/google";
-import "./globals.css";
+
 import { Providers } from "@/components/providers";
 import { cn } from "@/lib/utils";
+import "./globals.css";
 
 const figtree = Figtree({
   subsets: ["latin"],
   variable: "--font-figtree",
+});
+
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  display: "swap",
+  subsets: ["latin"],
 });
 
 const defaultUrl = process.env.VERCEL_URL
@@ -15,15 +22,10 @@ const defaultUrl = process.env.VERCEL_URL
 
 export const metadata: Metadata = {
   metadataBase: new URL(defaultUrl),
-  title: "Next.js and Supabase Starter Kit",
-  description: "The fastest way to build apps with Next.js and Supabase",
+  title: "Realtime Multi-LLM Chat",
+  description:
+    "A Supabase-backed chat demo with guest access, persisted threads, and streaming responses from multiple LLM providers.",
 };
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  display: "swap",
-  subsets: ["latin"],
-});
 
 export default function RootLayout({
   children,
@@ -34,9 +36,9 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={cn("font-sans", figtree.variable, geistSans.variable)}
+      className={cn("dark font-sans", figtree.variable, geistSans.variable)}
     >
-      <body className="antialiased">
+      <body className="min-h-svh bg-background text-foreground antialiased">
         <Providers>{children}</Providers>
       </body>
     </html>

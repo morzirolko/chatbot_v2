@@ -1,12 +1,12 @@
 "use client";
 
 import { useMutation } from "@tanstack/react-query";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
-import { useBrowserAuth } from "@/hooks/use-browser-auth";
-import { cn } from "@/lib/utils";
-import { signup } from "@/lib/api/auth";
-import { Button } from "@/components/ui/button";
 import { AuthBackButton } from "@/components/auth-back-button";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -16,9 +16,9 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useBrowserAuth } from "@/hooks/use-browser-auth";
+import { signup } from "@/lib/api/auth";
+import { cn } from "@/lib/utils";
 
 export function SignUpForm({
   className,
@@ -39,24 +39,24 @@ export function SignUpForm({
       }
 
       await refreshSession();
-      router.push("/protected");
+      router.push("/");
       router.refresh();
     },
     onError: (mutationError) => {
       setError(
         mutationError instanceof Error
           ? mutationError.message
-          : "An error occurred",
+          : "An error occurred.",
       );
     },
   });
 
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSignUp = async (event: React.FormEvent) => {
+    event.preventDefault();
     setError(null);
 
     if (password !== repeatPassword) {
-      setError("Passwords do not match");
+      setError("Passwords do not match.");
       return;
     }
 
@@ -85,7 +85,9 @@ export function SignUpForm({
       <Card>
         <CardHeader>
           <CardTitle className="text-2xl">Sign up</CardTitle>
-          <CardDescription>Create a new account</CardDescription>
+          <CardDescription>
+            Create an account to keep your chats across sessions.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSignUp}>
@@ -94,52 +96,57 @@ export function SignUpForm({
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
+                  name="email"
                   type="email"
                   placeholder="m@example.com"
+                  autoComplete="email"
+                  spellCheck={false}
                   required
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(event) => setEmail(event.target.value)}
                 />
               </div>
               <div className="grid gap-2">
-                <div className="flex items-center">
-                  <Label htmlFor="password">Password</Label>
-                </div>
+                <Label htmlFor="password">Password</Label>
                 <Input
                   id="password"
+                  name="password"
                   type="password"
+                  autoComplete="new-password"
                   required
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(event) => setPassword(event.target.value)}
                 />
               </div>
               <div className="grid gap-2">
-                <div className="flex items-center">
-                  <Label htmlFor="repeat-password">Repeat Password</Label>
-                </div>
+                <Label htmlFor="repeat-password">Repeat password</Label>
                 <Input
                   id="repeat-password"
+                  name="repeatPassword"
                   type="password"
+                  autoComplete="new-password"
                   required
                   value={repeatPassword}
-                  onChange={(e) => setRepeatPassword(e.target.value)}
+                  onChange={(event) => setRepeatPassword(event.target.value)}
                 />
               </div>
-              {error && <p className="text-sm text-red-500">{error}</p>}
+              {error ? (
+                <p role="alert" className="text-sm text-red-500">
+                  {error}
+                </p>
+              ) : null}
               <Button
                 type="submit"
                 className="w-full"
                 disabled={signUpMutation.isPending}
               >
-                {signUpMutation.isPending
-                  ? "Creating an account..."
-                  : "Sign up"}
+                {signUpMutation.isPending ? "Creating an account…" : "Sign up"}
               </Button>
             </div>
             <div className="mt-4 text-center text-sm">
               Already have an account?{" "}
               <Link href="/auth/login" className="underline underline-offset-4">
-                Login
+                Log in
               </Link>
             </div>
           </form>

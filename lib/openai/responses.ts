@@ -67,7 +67,6 @@ export async function streamOpenAIAssistantResponse({
     throw new Error("OpenAI did not return a response stream.");
   }
 
-  let responseId: string | null = null;
   let outputText = "";
 
   for await (const event of readServerSentEvents(response.body)) {
@@ -79,18 +78,13 @@ export async function streamOpenAIAssistantResponse({
       type?: string;
       delta?: string;
       text?: string;
-      response?: { id?: string };
-      response_id?: string;
       error?: { code?: string; message?: string };
       message?: string;
     };
 
-    responseId ??= payload.response?.id ?? payload.response_id ?? null;
-
     switch (payload.type) {
       case "response.created":
       case "response.completed":
-        responseId ??= payload.response?.id ?? payload.response_id ?? null;
         break;
       case "response.output_text.delta":
         if (payload.delta) {
@@ -126,7 +120,6 @@ export async function streamOpenAIAssistantResponse({
   }
 
   return {
-    responseId,
     content,
   };
 }

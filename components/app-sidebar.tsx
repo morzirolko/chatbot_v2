@@ -31,15 +31,17 @@ interface AppSidebarProps {
   onSelectThread: (threadId: string) => void;
 }
 
+const sidebarDateFormatter = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+});
+
 function getInitial(value: string | undefined) {
   return value?.trim().charAt(0).toUpperCase() || "G";
 }
 
 function formatUpdatedAt(value: string) {
-  return new Date(value).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
+  return sidebarDateFormatter.format(new Date(value));
 }
 
 function SidebarNotice({ children }: { children: ReactNode }) {
@@ -82,7 +84,7 @@ export function AppSidebar({
     >
       <div className="flex h-full flex-col bg-[linear-gradient(180deg,rgba(43,31,24,0.97),rgba(25,24,24,0.985)_30%,rgba(20,20,20,0.995))] text-white">
         <SidebarHeader className="gap-4 border-b border-white/8 px-4 pb-5 pt-5">
-          <div className="mx-auto flex w-full max-w-68 items-start justify-between ">
+          <div className="mx-auto flex w-full max-w-68 items-start justify-between">
             <h2 className="font-heading text-2xl font-medium text-white">
               Chats
             </h2>
@@ -109,8 +111,8 @@ export function AppSidebar({
           {!isLoading && threads.length === 0 ? (
             <div className="mx-auto w-full max-w-68">
               <SidebarNotice>
-                No conversations yet. Start one to see synced history and
-                attached references here.
+                No conversations yet. Start one to see synced history and recent
+                context here.
               </SidebarNotice>
             </div>
           ) : null}
@@ -170,6 +172,7 @@ export function AppSidebar({
                 <p className="text-sm text-white/45">{sessionDescription}</p>
               </div>
             </div>
+
             <div className="mt-4">
               {showGuestActions ? (
                 <div className="flex w-full gap-2">
@@ -190,6 +193,7 @@ export function AppSidebar({
                   </Button>
                 </div>
               ) : null}
+
               {showLogoutAction ? (
                 <LogoutButton
                   variant="outline"
@@ -197,6 +201,7 @@ export function AppSidebar({
                   className="w-full justify-center border-white/10 bg-white/3 text-white hover:bg-white/8 hover:text-white"
                 />
               ) : null}
+
               {isAuthLoading ? (
                 <Button
                   variant="outline"

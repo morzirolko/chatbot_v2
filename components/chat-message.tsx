@@ -2,6 +2,11 @@ import { cn } from "@/lib/utils";
 import type { ChatMessage } from "@/lib/types/chat";
 import { ChatMarkdown } from "@/components/chat-markdown";
 
+const messageTimeFormatter = new Intl.DateTimeFormat("en-US", {
+  hour: "numeric",
+  minute: "2-digit",
+});
+
 interface ChatMessageItemProps {
   message: ChatMessage;
   isOwnMessage: boolean;
@@ -40,15 +45,12 @@ export const ChatMessageItem = ({
               {isOwnMessage ? "You" : "Assistant"}
             </span>
             <span>
-              {new Date(message.createdAt).toLocaleTimeString("en-US", {
-                hour: "2-digit",
-                minute: "2-digit",
-                hour12: true,
-              })}
+              {messageTimeFormatter.format(new Date(message.createdAt))}
             </span>
           </div>
         )}
         <div
+          aria-busy={isStreaming}
           className={cn(
             "px-3 py-2.5 text-sm leading-6",
             isStreaming && "opacity-90",

@@ -13,8 +13,8 @@ export async function POST() {
   if (sessionState.record) {
     try {
       await signOutGatewaySession({
-        accessToken: sessionState.record.supabase_access_token,
-        refreshToken: sessionState.record.supabase_refresh_token,
+        accessToken: sessionState.record.getSupabaseAccessToken(),
+        refreshToken: sessionState.record.getSupabaseRefreshToken(),
       });
     } catch (error) {
       console.error("[api/auth/logout] Failed to sign out upstream session.", error);

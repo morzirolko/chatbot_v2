@@ -1,4 +1,3 @@
-import { getChatRealtimeChannelName } from "@/lib/chat/realtime";
 import { buildThreadPreview, buildThreadTitle } from "@/lib/chat/thread";
 import type {
   ChatMessage,
@@ -41,7 +40,6 @@ export function createThreadDetailFromMessage(message: ChatMessage) {
       title: buildThreadTitle(message.content),
       createdAt: message.createdAt,
       updatedAt: message.createdAt,
-      realtimeChannelName: getChatRealtimeChannelName(message.threadId),
     },
     messages: [message],
   } satisfies ChatThreadResponse;

@@ -15,6 +15,7 @@ import {
   ensureAnonymousSession as createAnonymousSession,
   getAuthSession,
 } from "@/lib/api/auth";
+import { readJsonResponse } from "@/lib/api/error";
 import {
   clearPendingAnonymousUpgradeToken,
   readPendingAnonymousUpgradeToken,
@@ -24,7 +25,10 @@ import {
   chatThreadQueryKeyPrefix,
   chatThreadsQueryKey,
 } from "@/lib/query-keys";
-import type { BrowserSessionResponse, BrowserSessionUser } from "@/lib/types/auth";
+import type {
+  BrowserSessionResponse,
+  BrowserSessionUser,
+} from "@/lib/types/auth";
 
 interface AuthContextValue {
   user: BrowserSessionUser | null;
@@ -39,18 +43,6 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-async function readJsonResponse<T>(response: Response) {
-  const payload = (await response.json().catch(() => null)) as
-    | (T & { error?: string })
-    | null;
-
-  if (!response.ok) {
-    throw new Error(payload?.error ?? "Request failed.");
-  }
-
-  return payload as T;
-}
-
 function emptyAuthState() {
   return {
     user: null,
@@ -64,10 +56,9 @@ function emptyAuthState() {
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [authState, setAuthState] =
-    useState<Pick<
-      AuthContextValue,
-      "user" | "isAnonymous" | "realtimeAccessToken"
-    >>(emptyAuthState);
+    useState<
+      Pick<AuthContextValue, "user" | "isAnonymous" | "realtimeAccessToken">
+    >(emptyAuthState);
   const [isLoading, setIsLoading] = useState(true);
   const queryClient = useQueryClient();
   const ensureSessionRef = useRef<Promise<BrowserSessionResponse> | null>(null);

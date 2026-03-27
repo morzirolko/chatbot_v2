@@ -170,7 +170,6 @@ export async function streamGoogleAssistantResponse({
   }
 
   return {
-    responseId: null,
     content,
   };
 }

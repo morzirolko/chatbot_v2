@@ -94,13 +94,11 @@ export async function createUserMessageForUser(
 export async function createAssistantMessageForThread(
   threadId: string,
   content: string,
-  openaiResponseId?: string | null,
 ) {
   return createChatMessage({
     threadId,
     role: "assistant",
     content,
-    openaiResponseId,
   });
 }
 

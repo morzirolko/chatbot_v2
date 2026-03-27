@@ -1,52 +1,57 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
+import { useBrowserAuth } from "@/hooks/use-browser-auth";
 import { upsertThreadMessage, upsertThreadSummary } from "@/lib/chat/cache";
 import { CHAT_PERSISTED_MESSAGE_EVENT } from "@/lib/chat/realtime";
-import {
-  chatThreadQueryKey,
-} from "@/lib/query-keys";
+import { chatThreadQueryKey } from "@/lib/query-keys";
 import { chatThreadsQueryKey } from "@/lib/query-keys";
-import { createClient } from "@/lib/supabase/client";
+import { createRealtimeClient } from "@/lib/supabase/client";
 import type { ChatMessage, ChatThreadResponse } from "@/lib/types/chat";
 import type { ChatThreadSummary } from "@/lib/types/chat";
+
+type RealtimeClient = ReturnType<typeof createRealtimeClient>;
+type RealtimeChannel = ReturnType<RealtimeClient["channel"]>;
 
 export function useRealtimeChat(
   threadId?: string | null,
   channelName?: string,
 ) {
   const queryClient = useQueryClient();
-  const supabase = useMemo(() => createClient(), []);
-  const [channel, setChannel] = useState<ReturnType<
-    typeof supabase.channel
-  > | null>(null);
+  const { realtimeAccessToken } = useBrowserAuth();
+  const accessTokenRef = useRef<string | null>(realtimeAccessToken);
+  const channelRef = useRef<RealtimeChannel | null>(null);
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    if (!channelName) {
-      setChannel(null);
+    accessTokenRef.current = realtimeAccessToken;
+  }, [realtimeAccessToken]);
+
+  useEffect(() => {
+    if (!channelName || !realtimeAccessToken) {
+      channelRef.current = null;
       setIsConnected(false);
       return;
     }
 
     let isActive = true;
-    let newChannel: ReturnType<typeof supabase.channel> | null = null;
+    const supabase = createRealtimeClient(() => accessTokenRef.current);
+    const nextChannel = supabase.channel(channelName, {
+      config: {
+        broadcast: {
+          ack: true,
+          self: true,
+        },
+        private: true,
+      },
+    });
+    channelRef.current = nextChannel;
 
     const subscribeToChannel = async () => {
       try {
-        newChannel = supabase.channel(channelName, {
-          config: {
-            broadcast: {
-              ack: true,
-              self: true,
-            },
-            private: true,
-          },
-        });
-
-        newChannel
+        nextChannel
           .on(
             "broadcast",
             { event: CHAT_PERSISTED_MESSAGE_EVENT },
@@ -56,7 +61,8 @@ export function useRealtimeChat(
               if (threadId) {
                 queryClient.setQueryData<ChatThreadResponse>(
                   chatThreadQueryKey(threadId),
-                  (currentThread) => upsertThreadMessage(currentThread, message),
+                  (currentThread) =>
+                    upsertThreadMessage(currentThread, message),
                 );
               }
 
@@ -87,8 +93,6 @@ export function useRealtimeChat(
               );
             }
           });
-
-        setChannel(newChannel);
       } catch (error) {
         if (!isActive) {
           return;
@@ -98,7 +102,7 @@ export function useRealtimeChat(
           "[chat/realtime] Failed to authorize realtime client.",
           error,
         );
-        setChannel(null);
+        channelRef.current = null;
         setIsConnected(false);
       }
     };
@@ -107,26 +111,23 @@ export function useRealtimeChat(
 
     return () => {
       isActive = false;
-      setChannel(null);
+      channelRef.current = null;
       setIsConnected(false);
-
-      if (newChannel) {
-        void supabase.removeChannel(newChannel);
-      }
+      void supabase.removeChannel(nextChannel);
     };
-  }, [channelName, queryClient, supabase, threadId]);
+  }, [channelName, queryClient, realtimeAccessToken, threadId]);
 
   const broadcastMessage = useCallback(
     async (message: ChatMessage) => {
-      if (!channel || !isConnected) return;
+      if (!channelRef.current || !isConnected) return;
 
-      await channel.send({
+      await channelRef.current.send({
         type: "broadcast",
         event: CHAT_PERSISTED_MESSAGE_EVENT,
         payload: message,
       });
     },
-    [channel, isConnected],
+    [isConnected],
   );
 
   return { broadcastMessage, isConnected };

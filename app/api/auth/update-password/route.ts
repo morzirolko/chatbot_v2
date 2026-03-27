@@ -62,8 +62,8 @@ export async function POST(request: Request) {
   try {
     const result = await updateGatewayUser(
       {
-        accessToken: sessionState.record.supabase_access_token,
-        refreshToken: sessionState.record.supabase_refresh_token,
+        accessToken: sessionState.record.getSupabaseAccessToken(),
+        refreshToken: sessionState.record.getSupabaseRefreshToken(),
       },
       {
         password,

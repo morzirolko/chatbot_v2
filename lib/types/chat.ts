@@ -8,7 +8,6 @@ export interface ChatMessage {
   role: ChatRole;
   content: string;
   createdAt: string;
-  openaiResponseId?: string | null;
 }
 
 export interface ChatThread {
@@ -16,7 +15,6 @@ export interface ChatThread {
   title: string | null;
   createdAt: string;
   updatedAt: string;
-  realtimeChannelName: string;
 }
 
 export interface ChatThreadSummary {

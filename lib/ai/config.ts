@@ -10,7 +10,6 @@ export interface StreamAssistantResponseArgs {
 }
 
 export interface StreamAssistantResponseResult {
-  responseId: string | null;
   content: string;
 }
 

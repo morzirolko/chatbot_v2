@@ -1,16 +1,12 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
-import { useBrowserAuth } from "@/hooks/use-browser-auth";
-import { cn } from "@/lib/utils";
-import { login } from "@/lib/api/auth";
-import {
-  chatThreadQueryKeyPrefix,
-  chatThreadsQueryKey,
-} from "@/lib/query-keys";
-import { Button } from "@/components/ui/button";
 import { AuthBackButton } from "@/components/auth-back-button";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -20,9 +16,13 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useBrowserAuth } from "@/hooks/use-browser-auth";
+import { login } from "@/lib/api/auth";
+import {
+  chatThreadQueryKeyPrefix,
+  chatThreadsQueryKey,
+} from "@/lib/query-keys";
+import { cn } from "@/lib/utils";
 
 export function LoginForm({
   className,
@@ -40,20 +40,20 @@ export function LoginForm({
       await refreshSession();
       queryClient.removeQueries({ queryKey: chatThreadQueryKeyPrefix });
       queryClient.removeQueries({ queryKey: chatThreadsQueryKey });
-      router.push("/protected");
+      router.push("/");
       router.refresh();
     },
     onError: (mutationError) => {
       setError(
         mutationError instanceof Error
           ? mutationError.message
-          : "An error occurred",
+          : "An error occurred.",
       );
     },
   });
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleLogin = async (event: React.FormEvent) => {
+    event.preventDefault();
     setError(null);
 
     try {
@@ -80,9 +80,9 @@ export function LoginForm({
       <AuthBackButton />
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl">Login</CardTitle>
+          <CardTitle className="text-2xl">Log in</CardTitle>
           <CardDescription>
-            Enter your email below to login to your account
+            Enter your email to continue your account and chat history.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -92,11 +92,14 @@ export function LoginForm({
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
+                  name="email"
                   type="email"
                   placeholder="m@example.com"
+                  autoComplete="email"
+                  spellCheck={false}
                   required
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(event) => setEmail(event.target.value)}
                 />
               </div>
               <div className="grid gap-2">
@@ -111,19 +114,25 @@ export function LoginForm({
                 </div>
                 <Input
                   id="password"
+                  name="password"
                   type="password"
+                  autoComplete="current-password"
                   required
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(event) => setPassword(event.target.value)}
                 />
               </div>
-              {error && <p className="text-sm text-red-500">{error}</p>}
+              {error ? (
+                <p role="alert" className="text-sm text-red-500">
+                  {error}
+                </p>
+              ) : null}
               <Button
                 type="submit"
                 className="w-full"
                 disabled={loginMutation.isPending}
               >
-                {loginMutation.isPending ? "Logging in..." : "Login"}
+                {loginMutation.isPending ? "Logging in…" : "Log in"}
               </Button>
             </div>
             <div className="mt-4 text-center text-sm">
@@ -132,7 +141,7 @@ export function LoginForm({
                 href="/auth/sign-up"
                 className="underline underline-offset-4"
               >
-                Sign up
+                Create one
               </Link>
             </div>
           </form>

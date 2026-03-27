@@ -12,10 +12,7 @@ import {
 } from "@/lib/chat/cache";
 import { sendChatMessage } from "@/lib/api/chat";
 import { useBrowserAuth } from "@/hooks/use-browser-auth";
-import {
-  chatThreadQueryKey,
-  chatThreadsQueryKey,
-} from "@/lib/query-keys";
+import { chatThreadQueryKey, chatThreadsQueryKey } from "@/lib/query-keys";
 import type {
   ChatMessage,
   ChatThreadResponse,
@@ -28,9 +25,7 @@ interface UseSendMessageMutationOptions {
   onCompleted?: (message: ChatMessage) => void | Promise<void>;
 }
 
-export function useSendMessageMutation(
-  options: UseSendMessageMutationOptions,
-) {
+export function useSendMessageMutation(options: UseSendMessageMutationOptions) {
   const queryClient = useQueryClient();
   const { ensureAnonymousSession } = useBrowserAuth();
   const [streamingText, setStreamingText] = useState("");
