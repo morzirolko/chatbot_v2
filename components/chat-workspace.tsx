@@ -1,18 +1,39 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { AppSidebar } from "@/components/app-sidebar";
 import { RealtimeChat } from "@/components/realtime-chat";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { useBrowserAuth } from "@/hooks/use-browser-auth";
 import { useChatThreadsQuery } from "@/hooks/use-chat-threads-query";
 
 export function ChatWorkspace() {
+  const { isLoading: isAuthLoading, user } = useBrowserAuth();
   const { data: threads, isLoading: isThreadsLoading } = useChatThreadsQuery();
   const [activeThreadId, setActiveThreadId] = useState<
     string | null | undefined
   >(undefined);
   const [focusComposerSignal, setFocusComposerSignal] = useState(0);
+  const previousSessionUserIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (isAuthLoading) {
+      return;
+    }
+
+    const sessionUserId = user?.id ?? null;
+
+    if (
+      previousSessionUserIdRef.current !== null &&
+      previousSessionUserIdRef.current !== sessionUserId
+    ) {
+      setActiveThreadId(null);
+      setFocusComposerSignal((currentValue) => currentValue + 1);
+    }
+
+    previousSessionUserIdRef.current = sessionUserId;
+  }, [isAuthLoading, user?.id]);
 
   useEffect(() => {
     if (activeThreadId === undefined && !isThreadsLoading) {
