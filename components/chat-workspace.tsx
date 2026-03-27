@@ -1,14 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { AppSidebar } from "@/components/app-sidebar";
 import { RealtimeChat } from "@/components/realtime-chat";
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { useChatThreadsQuery } from "@/hooks/use-chat-threads-query";
 
 export function ChatWorkspace() {
@@ -32,11 +28,6 @@ export function ChatWorkspace() {
       setActiveThreadId(threads[0]?.id ?? null);
     }
   }, [activeThreadId, isThreadsLoading, threads]);
-
-  const selectedThread = useMemo(
-    () => threads?.find((thread) => thread.id === activeThreadId) ?? null,
-    [activeThreadId, threads],
-  );
 
   return (
     <SidebarProvider
@@ -65,25 +56,14 @@ export function ChatWorkspace() {
         onSelectThread={setActiveThreadId}
       />
       <SidebarInset className="min-h-screen bg-transparent text-white">
-        <div className="flex min-h-screen flex-col gap-5 px-4 py-4 sm:px-6 sm:py-5">
-          <div className="mx-auto flex min-h-0 w-full max-w-295 flex-1 flex-col gap-5">
-            <div className="flex items-center gap-3 px-1 sm:px-2">
-              <SidebarTrigger className="text-white hover:bg-white/10 md:hidden" />
-              <h1 className="min-w-0 font-heading text-2xl font-medium text-white sm:text-3xl">
-                {selectedThread?.title ?? "New conversation"}
-              </h1>
-            </div>
-
-            <div className="flex min-h-0 flex-1">
-              <RealtimeChat
-                activeThreadId={activeThreadId ?? null}
-                isArchiveLoading={
-                  isThreadsLoading && activeThreadId === undefined
-                }
-                focusComposerSignal={focusComposerSignal}
-                onThreadCreated={setActiveThreadId}
-              />
-            </div>
+        <div className="flex min-h-screen p-2 sm:p-3">
+          <div className="flex min-h-0 w-full flex-1">
+            <RealtimeChat
+              activeThreadId={activeThreadId ?? null}
+              isArchiveLoading={isThreadsLoading && activeThreadId === undefined}
+              focusComposerSignal={focusComposerSignal}
+              onThreadCreated={setActiveThreadId}
+            />
           </div>
         </div>
       </SidebarInset>

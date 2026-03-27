@@ -18,6 +18,7 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "@/components/ui/input-group";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import type { ChatMessage } from "@/lib/types/chat";
 
 const STREAMING_MESSAGE_ID = "streaming-assistant-message";
@@ -38,7 +39,6 @@ export const RealtimeChat = ({
   const { containerRef, scrollToBottom } = useChatScroll();
   const inputRef = useRef<HTMLInputElement>(null);
   const {
-    user,
     isAnonymous,
     isLoading: isAuthLoading,
     realtimeAccessToken,
@@ -48,7 +48,7 @@ export const RealtimeChat = ({
     error: threadError,
     isLoading: isThreadLoading,
   } = useChatThreadQuery(activeThreadId);
-  const { broadcastMessage, isConnected } = useRealtimeChat(
+  const { broadcastMessage } = useRealtimeChat(
     activeThreadId,
     threadData?.thread.realtimeChannelName,
     realtimeAccessToken,
@@ -70,11 +70,11 @@ export const RealtimeChat = ({
     onCompleted: broadcastMessage,
   });
   const [newMessage, setNewMessage] = useState("");
-  const isGuest = isAnonymous || !user;
   const isQuotaExceeded = isAnonymous && streamErrorCode === "quota_exceeded";
   const isAnonymousProviderDisabled =
     threadError instanceof Error &&
     threadError.message.includes("Supabase anonymous sign-ins are disabled");
+  const chatTitle = threadData?.thread.title?.trim() || "New conversation";
 
   const allMessages = useMemo(() => {
     const persistedMessages = threadData?.messages ?? [];
@@ -120,7 +120,7 @@ export const RealtimeChat = ({
 
   if (isAuthLoading) {
     return (
-      <div className="w-full rounded-2xl border border-white/10 bg-[linear-gradient(180deg,rgba(255,140,56,0.08),rgba(255,255,255,0.04))] p-4 text-sm text-white/60 shadow-xl backdrop-blur-xl">
+      <div className="w-full rounded-xl border border-white/10 bg-[linear-gradient(180deg,rgba(255,140,56,0.08),rgba(255,255,255,0.04))] p-4 text-sm text-white/60 shadow-xl backdrop-blur-xl">
         Loading chat...
       </div>
     );
@@ -128,7 +128,7 @@ export const RealtimeChat = ({
 
   if (isArchiveLoading || (activeThreadId && isThreadLoading && !threadData)) {
     return (
-      <div className="w-full rounded-2xl border border-white/10 bg-[linear-gradient(180deg,rgba(255,140,56,0.08),rgba(255,255,255,0.04))] p-4 text-sm text-white/60 shadow-xl backdrop-blur-xl">
+      <div className="w-full rounded-xl border border-white/10 bg-[linear-gradient(180deg,rgba(255,140,56,0.08),rgba(255,255,255,0.04))] p-4 text-sm text-white/60 shadow-xl backdrop-blur-xl">
         Loading your conversation...
       </div>
     );
@@ -138,7 +138,7 @@ export const RealtimeChat = ({
     if (threadError instanceof Error) {
       if (isAnonymousProviderDisabled) {
         return (
-          <div className="w-full rounded-2xl border border-white/10 bg-[linear-gradient(180deg,rgba(255,140,56,0.08),rgba(255,255,255,0.04))] p-4 text-sm backdrop-blur-xl">
+          <div className="w-full rounded-xl border border-white/10 bg-[linear-gradient(180deg,rgba(255,140,56,0.08),rgba(255,255,255,0.04))] p-4 text-sm backdrop-blur-xl">
             <p className="text-white">Guest chat is currently unavailable.</p>
             <p className="mt-2 text-white/55">
               Sign in or create an account to keep using the chat while
@@ -157,7 +157,7 @@ export const RealtimeChat = ({
       }
 
       return (
-        <div className="w-full rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-100 backdrop-blur-xl">
+        <div className="w-full rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-100 backdrop-blur-xl">
           {threadError.message}
         </div>
       );
@@ -165,20 +165,18 @@ export const RealtimeChat = ({
   }
 
   return (
-    <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[2rem] border border-white/8 bg-[linear-gradient(180deg,rgba(255,153,84,0.08),rgba(255,255,255,0.035)_18%,rgba(255,255,255,0.02)_100%)] text-white antialiased shadow-[0_28px_100px_rgba(0,0,0,0.34)] backdrop-blur-xl">
-      <div className="flex items-center justify-between border-b border-white/8 bg-[linear-gradient(90deg,rgba(255,140,56,0.08),rgba(255,255,255,0.025))] px-5 py-3.5 text-sm">
-        <div className="text-sm text-white/55">
-          {activeThreadId && !isGuest ? user?.email : "Chat"}
-        </div>
-        <div className="text-xs uppercase tracking-wide text-white/45">
-          {activeThreadId ? (isConnected ? "Live" : "Syncing") : "Draft mode"}
+    <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-xl border border-white/10 bg-[linear-gradient(180deg,rgba(255,153,84,0.08),rgba(255,255,255,0.035)_18%,rgba(255,255,255,0.02)_100%)] text-white antialiased shadow-[0_28px_100px_rgba(0,0,0,0.34)] backdrop-blur-xl">
+      <div className="flex items-center justify-between gap-3 border-b border-white/8 bg-[linear-gradient(90deg,rgba(255,140,56,0.08),rgba(255,255,255,0.025))] px-4 py-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <SidebarTrigger className="text-white hover:bg-white/10 md:hidden" />
+          <div className="min-w-0">
+            <p className="truncate font-heading text-lg font-medium text-white">
+              Conversation {chatTitle}
+            </p>
+          </div>
         </div>
       </div>
-
-      <div
-        ref={containerRef}
-        className="flex-1 overflow-y-auto px-4 py-5 sm:px-6 sm:py-6"
-      >
+      <div ref={containerRef} className="flex-1 overflow-y-auto px-4 py-4">
         {!activeThreadId ? (
           <div className="flex h-full items-center justify-center">
             <div className="w-full max-w-216 px-2">
@@ -194,7 +192,7 @@ export const RealtimeChat = ({
             No messages yet. Start the conversation.
           </div>
         ) : (
-          <div className="mx-auto w-full max-w-216 space-y-5 px-2">
+          <div className="mx-auto flex w-full max-w-216 flex-col gap-5 px-2">
             {allMessages.map((message, index) => {
               const prevMessage = index > 0 ? allMessages[index - 1] : null;
               const showHeader =
@@ -219,7 +217,7 @@ export const RealtimeChat = ({
       </div>
 
       {streamError ? (
-        <div className="border-t border-white/8 px-4 py-3 text-sm sm:px-6">
+        <div className="border-t border-white/8 px-4 py-4 text-sm">
           <div className="mx-auto w-full max-w-216 px-2">
             <p className="text-red-200">{streamError}</p>
             {isQuotaExceeded ? (
@@ -238,7 +236,7 @@ export const RealtimeChat = ({
 
       <form
         onSubmit={handleSendMessage}
-        className="border-t border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.015),rgba(255,140,56,0.06))] px-4 py-4 sm:px-6 sm:py-5"
+        className="border-t border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.015),rgba(255,140,56,0.06))] px-4 py-4"
       >
         <div className="mx-auto flex w-full max-w-216 gap-3 px-2">
           <InputGroup
@@ -260,9 +258,7 @@ export const RealtimeChat = ({
             </InputGroupAddon>
             <InputGroupInput
               ref={inputRef}
-              className={cn(
-                "h-full px-0 text-white placeholder:text-white/35",
-              )}
+              className={cn("h-full px-0 text-white placeholder:text-white/35")}
               type="text"
               value={newMessage}
               onChange={(e) => {
